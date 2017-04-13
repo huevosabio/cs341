@@ -184,3 +184,7 @@ TSWLatexianTemp*
 
 # the proposal
 proposal.pdf
+
+# files that ought to be ignored
+ignored_assets/
+
