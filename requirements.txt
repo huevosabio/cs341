@@ -14,6 +14,7 @@ decorator==4.0.11
 entrypoints==0.2.2
 enum34==1.1.6
 functools32==3.2.3.post2
+google-api-python-client==1.6.2
 google-auth==1.0.1
 google-auth-httplib2==0.0.2
 google-cloud-bigquery==0.24.0
@@ -42,8 +43,10 @@ ndg-httpsclient==0.4.2
 networkx==1.11
 notebook==5.0.0
 numpy==1.12.1
+oauth2client==4.1.0
 packaging==16.8
-pandas==0.19.2
+pandas==0.20.1
+pandas-gbq==0.1.6
 pandocfilters==1.4.1
 pathlib2==2.2.1
 patsy==0.4.1
@@ -77,6 +80,7 @@ terminado==0.6
 testpath==0.3
 tornado==4.5
 traitlets==4.3.2
+uritemplate==3.0.0
 wcwidth==0.1.7
 webencodings==0.5.1
 widgetsnbextension==2.0.0
