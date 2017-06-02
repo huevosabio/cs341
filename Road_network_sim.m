@@ -178,16 +178,22 @@ for t = 1:Tmax-1
                     % pick up customer
                     car(i).state = DRIVING_TO_DEST;
                     car(i).pos = car(i).dpos;
+                    if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                    end
                     car(i).dpos = customer(car(i).passId).dpos;
                     customer(car(i).passId).pickedup = 1;
                     car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
                     
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
-                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:))./LinkLength(car(i).path(1), car(i).path(2));
+                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                 elseif car(i).state == DRIVING_TO_DEST
                     % drop off customer
                     car(i).state = DRIVING_TO_STATION;
                     car(i).pos = customer(car(i).passId).dpos;
+                    if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                    end
                     car(i).dpos = StationLocation(customer(car(i).passId).dstation, :);
                     % route car to station
                     car(i).path = findRoute(car(i).path(1), station(customer(car(i).passId).dstation).node_id, LinkTime);
@@ -207,13 +213,16 @@ for t = 1:Tmax-1
                     else
                         station(car(i).dstation).carOnRoad = [station(car(i).dstation).carOnRoad, car(i).id];
                         LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
-                        car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:))./LinkLength(car(i).path(1), car(i).path(2));
+                        car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                     end
                     
                 elseif car(i).state == DRIVING_TO_STATION
                     % arrived back to station
                     car(i).state = IDLE;
                     car(i).pos = car(i).dpos;
+                    if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                    end
                     car(i).ostation = car(i).dstation;
                     % add car to idle car list
                     station(car(i).ostation).carIdle = [station(car(i).ostation).carIdle, car(i).id];
@@ -225,6 +234,9 @@ for t = 1:Tmax-1
                     % finished rebalancing to station
                     car(i).state = IDLE;
                     car(i).pos = car(i).dpos;
+                    if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                    end
                     car(i).ostation = car(i).dstation;
                     % add car to idle car list
                     station(car(i).ostation).carIdle = [station(car(i).ostation).carIdle, car(i).id];
@@ -341,7 +353,7 @@ for t = 1:Tmax-1
             if length(car(assignedCarID).path) > 1 
                 tmpNode2 = car(assignedCarID).path(2);
                 tmpNode1 = car(assignedCarID).path(1);
-                car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:))./LinkLength(tmpNode1, tmpNode2);
+                car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
             end
             % remove unassigned customer from station
             station(i).custUnassigned = station(i).custUnassigned(2:end);
@@ -524,7 +536,7 @@ for t = 1:Tmax-1
                 if length(car(assignedCarID).path) > 1 
                     tmpNode2 = car(assignedCarID).path(2);
                     tmpNode1 = car(assignedCarID).path(1);
-                    car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:))./LinkLength(tmpNode1, tmpNode2);
+                    car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
                 end
                 % destination station add this car
                 station(currDest).carOnRoad = [station(currDest).carOnRoad, assignedCarID];
@@ -549,7 +561,7 @@ for t = 1:Tmax-1
                 car(tmpCar).state = REBALANCING;
                 car(tmpCar).path = rebPaths{i}{1,1}(:,1)';
                 car(tmpCar).dpos = NodesLocation(rebPaths{i}{1,1}(end,1),:);
-                car(tmpCar).direction = (NodesLocation(car(tmpCar).path(2),:) - NodesLocation(car(tmpCar).path(1),:))./LinkLength(car(tmpCar).path(1), car(tmpCar).path(2));
+                car(tmpCar).direction = (NodesLocation(car(tmpCar).path(2),:) - NodesLocation(car(tmpCar).path(1),:)); car(tmpCar).direction=car(tmpCar).direction/norm(car(tmpCar).direction);
                 car(tmpCar).dstation = find(StationNodeID == car(tmpCar).path(end),1);
                 station(stationId).carIdle = station(stationId).carIdle(2:end);
                 LinkNumVehicles(car(tmpCar).path(1), car(tmpCar).path(2)) = LinkNumVehicles(car(tmpCar).path(1), car(tmpCar).path(2))+1;
@@ -577,16 +589,25 @@ for t = 1:Tmax-1
                 if length(car(i).path) > 2
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
                     car(i).path = car(i).path(2:end);
-                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:))./LinkLength(car(i).path(1), car(i).path(2));
+                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                     car(i).pos = NodesLocation(car(i).path(1),:) + car(i).direction*residualDistance;
+                    if isnan(car(i).pos)
+                        'ERROR: car position is NaN'
+                    end
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
                 else
                     car(i).pos = NodesLocation(car(i).path(2),:);
+                    if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                    end
                 end
                 
             else
                 % don't need to go to the next node
                 car(i).pos = car(i).pos + car(i).direction*LinkSpeed(car(i).path(1), car(i).path(2))*dt;
+                if isnan(car(i).pos)
+                        'Error: car position is NaN'
+                end
             end
             
         end

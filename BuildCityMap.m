@@ -29,6 +29,7 @@ for i=1:N
     end
 end
 LinkTime(LinkTime==0)=1e9;
+LinkLength(LinkLength==0)=1e9;
 
 LinkNumVehicles = sparse(N,N);
 LinkCapacityLeft = sparse(N,N);
