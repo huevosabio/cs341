@@ -45,14 +45,14 @@ dt = 60/timeStep;   % length of each time step
 Tmax = 120*timeStep;    % simulation time
 Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
-v = 4000;
+v = 10000;
 rebPaths = cell(0);
 ccTmp = 1;
 cc = 1;
 
 PLOTFLAG = 0;
 PLOTREBFLAG = 1;
-NAIVEFLAG = 0;
+NAIVEFLAG = 1;
 rebCount = 1;
 
 
@@ -110,9 +110,9 @@ end
 % load demand data TODO
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fprintf('Loading demand data...')
-filename = 'SimTripData1820.csv';
-MData = csvread(filename);
-arrivalTimeOffset = 18*60*timeStep;
+filename = 'ignored_assets/MATLAB_orders.csv';
+MData = csvread(filename,1,1);
+arrivalTimeOffset = 0*60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -132,7 +132,7 @@ for i = 1:v
         stationCounter = stationCounter + 1;
     end
 end
-
+%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Begin Simulation: main loop
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -140,14 +140,16 @@ for t = 1:Tmax-1
     t
     % update LinkTime variable
     % go through all the links (i,j)
-    for i = 1:N
-        for j = RoadGraph{i}
-            [tmpLinkTime, tmpLinkSpeed] = getSpeed(LinkNumVehicles(i,j), RoadCap(i,j), LinkFreeFlow(i,j), LinkLength(i,j));
-            LinkTime(i,j) = tmpLinkTime;
-            LinkSpeed(i,j) = tmpLinkSpeed;
-        end
-    end
     
+    %No congestion
+    %for i = 1:N
+    %    for j = RoadGraph{i}
+    %        [tmpLinkTime, tmpLinkSpeed] = getSpeed(LinkNumVehicles(i,j), RoadCap(i,j), LinkFreeFlow(i,j), LinkLength(i,j));
+    %        LinkTime(i,j) = tmpLinkTime;
+    %        LinkSpeed(i,j) = tmpLinkSpeed;
+    %    end
+    %end
+    LinkSpeed=LinkFreeFlow;
     
     % vehicle state transitions
     
@@ -274,7 +276,7 @@ for t = 1:Tmax-1
                 end
             end
             if shortestDistance == inf
-                'ERROR: inf shortest distance'
+                'ERROR: inf shortest distance (could not find a vehicle for the customer)'
             end
             % assign route to the vehicle
             %assignedCarID

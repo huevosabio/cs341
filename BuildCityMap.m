@@ -1,6 +1,11 @@
-LinkTime=csvread('travel_time.csv',3,1);
+LinkTime=csvread('travel_time.csv',4,1);
+
+global RoadGraph NodesLocation
+
 NodesLocation=csvread('inferred_locations.csv',1,1);
 N=length(NodesLocation);
+
+
 
 StationLocation=NodesLocation;
 StationNodeID=[1:1:N]';
@@ -23,3 +28,5 @@ for i=1:N
     end
 end
 
+LinkNumVehicles = sparse(N,N);
+LinkCapacityLeft = sparse(N,N);
