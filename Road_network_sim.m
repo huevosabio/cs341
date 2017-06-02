@@ -69,13 +69,6 @@ if PLOTFLAG
 end
 
 
-% data collection
-avgWaitTimes = zeros(Tmax,1);
-cumNumCustomers = zeros(Tmax,1);
-numVehiclesBusy = zeros(Tmax, 1);
-numVehiclesRebalancing = zeros(Tmax, 1);
-numVehiclesNotRebalancing = zeros(Tmax, 1);
-numCarsOnLink = cell(Tmax);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % variable definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -99,13 +92,26 @@ end
 if NAIVEFLAG
     rebalanceQueue = cell(numStations,1);
     % define Tij
-    Tij = zeros(numStations, numStations);
-    for i = 1:numStations
-        for j = 1:numStations
-            Tij(i,j) = norm(StationLocation(j,:) - StationLocation(i,:), 1);
-        end
-    end
+    %Tij = zeros(numStations, numStations);
+    %for i = 1:numStations
+    %    for j = 1:numStations
+    %        Tij(i,j) = norm(StationLocation(j,:) - StationLocation(i,:), 1);
+    %    end
+    %end
+    Tij=LinkTime;
 end
+
+% data collection
+avgWaitTimes = zeros(Tmax,1);
+cumNumCustomers = zeros(Tmax,1);
+numVehiclesBusy = zeros(Tmax, 1);
+numVehiclesRebalancing = zeros(Tmax, 1);
+numVehiclesNotRebalancing = zeros(Tmax, 1);
+numCarsOnLink = cell(Tmax);
+carsIdlePrint=zeros(Tmax,numStations);
+carsOnRoadPrint=zeros(Tmax,numStations);
+custWaiting=zeros(Tmax,numStations);
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % load demand data TODO
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -150,6 +156,13 @@ for t = 1:Tmax-1
     %    end
     %end
     LinkSpeed=LinkFreeFlow;
+    
+    for i=1:numStations
+        carsIdlePrint(t,i)=length(station(i).carIdle);
+        carsOnRoadPrint(t,i)=length(station(i).carOnRoad);
+        custWaiting(t,i)=length(station(i).custUnassigned);
+    end
+    carsIdlePrint(t,:)+carsOnRoadPrint(t,:)
     
     % vehicle state transitions
     
@@ -228,7 +241,7 @@ for t = 1:Tmax-1
     % new customer arrivals
     while arrivalTimes(ccTmp) < t
         %customer arrival and destination locations
-        tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*1000; %TODO verify
+        tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
         % find the nearest nodes
         tmpNodes = dsearchn(NodesLocation, tmpCust);
         if tmpNodes(1) ~= tmpNodes(2)
