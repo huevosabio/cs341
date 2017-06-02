@@ -289,7 +289,7 @@ for t = 1:Tmax-1
                 end
             end
             if shortestDistance == inf
-                'ERROR: inf shortest distance (could not find a vehicle for the customer)'
+                %'ERROR: inf shortest distance (could not find a vehicle for the customer)'
             end
             % assign route to the vehicle
             %assignedCarID
