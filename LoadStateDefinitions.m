@@ -1,0 +1,9 @@
+% vehicle state definitions
+
+DRIVING_TO_PICKUP = 1;
+DRIVING_TO_DEST = 2;
+DRIVING_TO_STATION = 3;
+REBALANCING = 4;
+IDLE = 0;
+
+EPS = 0.001;
