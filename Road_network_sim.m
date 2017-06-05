@@ -190,7 +190,7 @@ for t = 1:Tmax-1
                     car(i).dpos = customer(car(i).passId).dpos;
                     customer(car(i).passId).pickedup = 1;
                     car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
-                    car(i).speedfactor =  LinkTime(i,customer(car(i).passId).onode) / (customer(car(i).passId).traveltime * 60);
+                    car(i).speedfactor =  LinkTime(customer(car(i).passId).onode,customer(car(i).passId).dnode) / (customer(car(i).passId).traveltime * 60);
 
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
                     car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
@@ -329,7 +329,7 @@ for t = 1:Tmax-1
                 
                 % route the new path using the customer speed
                 car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime); 
-                car(assignedCarID).speedfactor =  LinkTime(i,customer(custInd).onode) / (customer(custInd).traveltime * 60);
+                car(assignedCarID).speedfactor =  LinkTime(customer(custInd).onode,customer(custInd).dnode) / (customer(custInd).traveltime * 60);
             else
                 % vehicle is in motion.
                 if length(car(assignedCarID).path) == 1
