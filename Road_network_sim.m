@@ -118,9 +118,15 @@ custWaiting=zeros(Tmax,numStations);
 fprintf('Loading demand data...')
 filename = 'ignored_assets/MATLAB_orders.csv';
 MData = csvread(filename,1,1);
-arrivalTimeOffset = 0*60*timeStep;
+arrivalTimeOffset = (6*3600 + 0*60 + 0*60)/60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
+
+% but just start at the arrivalTimeOffset
+while arrivalTimes(ccTmp) < 0
+    ccTmp = ccTmp + 1;
+end
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % declare data structures for cars
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -129,7 +135,7 @@ stationCounter = 1;
 for i = 1:v
     car(i) = struct('id',i,'passId', 0, 'dstation',stationCounter,'ostation',stationCounter,...
         'dpos', [], 'state', IDLE, 'pos', NodesLocation(station(stationCounter).node_id, :),...
-        'direction',[], 'path', [StationNodeID(stationCounter)], 'dist_left', 0);
+        'direction',[], 'path', [StationNodeID(stationCounter)], 'dist_left', 0, 'speedfactor', 1);
     % update station data for this car
     station(stationCounter).carIdle = [station(stationCounter).carIdle, i];
     if stationCounter == numStations
@@ -162,14 +168,14 @@ for t = 1:Tmax-1
         carsOnRoadPrint(t,i)=length(station(i).carOnRoad);
         custWaiting(t,i)=length(station(i).custUnassigned);
     end
-    carsIdlePrint(t,:)+carsOnRoadPrint(t,:)
+    carsIdlePrint(t,:)+carsOnRoadPrint(t,:);
     
     % vehicle state transitions
     
     for i = 1:v
         if car(i).state ~= IDLE && length(car(i).path) == 2 % if it's on the last leg of its trip
             distToDest = norm(car(i).dpos - car(i).pos,2);
-            if distToDest < LinkSpeed(car(i).path(1), car(i).path(2))*dt
+            if distToDest < car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt
                 % remove car from link
                 LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
                 % shrink path to just final destination
@@ -184,7 +190,8 @@ for t = 1:Tmax-1
                     car(i).dpos = customer(car(i).passId).dpos;
                     customer(car(i).passId).pickedup = 1;
                     car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
-                    
+                    car(i).speedfactor =  LinkTime(i,customer(car(i).passId).onode) / (customer(car(i).passId).traveltime * 60);
+
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
                     car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                 elseif car(i).state == DRIVING_TO_DEST
@@ -204,6 +211,9 @@ for t = 1:Tmax-1
                     
                     customer(car(i).passId).delivered = 1;
                     car(i).passId = 0;
+
+                    % return to normal speed
+                    car(i).speedfactor = 1;
                     
                     % if the destination was already a station
                     if length(car(i).path) == 1
@@ -262,7 +272,7 @@ for t = 1:Tmax-1
             % make customer structure
             customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
                 'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
-                'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0);
+                'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
             % add this customer to the station
             station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
             station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
@@ -317,8 +327,9 @@ for t = 1:Tmax-1
                 car(assignedCarID).dpos = customer(custInd).dpos;
                 customer(custInd).pickedup = 1;
                 
-                % route the new path
-                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime);    
+                % route the new path using the customer speed
+                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime); 
+                car(assignedCarID).speedfactor =  LinkTime(i,customer(custInd).onode) / (customer(custInd).traveltime * 60);
             else
                 % vehicle is in motion.
                 if length(car(assignedCarID).path) == 1
@@ -581,10 +592,10 @@ for t = 1:Tmax-1
     % move vehicles
     for i = 1:v
         if length(car(i).path) > 1
-            if norm(NodesLocation(car(i).path(2),:)-car(i).pos) < LinkSpeed(car(i).path(1), car(i).path(2))*dt
+            if norm(NodesLocation(car(i).path(2),:)-car(i).pos) < car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt
                 % need to go to the next node (or stop)
                 
-                residualDistance = LinkSpeed(car(i).path(1), car(i).path(2))*dt - norm(NodesLocation(car(i).path(2),:)-car(i).pos);
+                residualDistance = car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt - norm(NodesLocation(car(i).path(2),:)-car(i).pos);
                 
                 if length(car(i).path) > 2
                     LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
@@ -604,7 +615,7 @@ for t = 1:Tmax-1
                 
             else
                 % don't need to go to the next node
-                car(i).pos = car(i).pos + car(i).direction*LinkSpeed(car(i).path(1), car(i).path(2))*dt;
+                car(i).pos = car(i).pos + car(i).direction * car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt;
                 if isnan(car(i).pos)
                         'Error: car position is NaN'
                 end
