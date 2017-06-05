@@ -24,4 +24,4 @@ StayIn = Data.StayIn;
 StayOut = Data.StayOut;
 nvehs = Data.nvehs;
 
-save('Data', 'RebIn','RebOut', 'StayIn', 'StayOut', 'nvehs')    
+save('LowerBoundData', 'RebIn','RebOut', 'StayIn', 'StayOut', 'nvehs')    
