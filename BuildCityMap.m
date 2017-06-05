@@ -6,7 +6,7 @@ global RoadGraph NodesLocation
 NodesLocation=csvread('inferred_locations.csv',1,1);
 N=length(NodesLocation);
 
-NodesLocation=NodesLocation*60;
+NodesLocation=NodesLocation*60; % to seconds!
 
 StationLocation=NodesLocation;
 StationNodeID=[1:1:N]';
@@ -22,7 +22,7 @@ for i=1:N
     for j=1:N
         RoadGraph{i}=[RoadGraph{i},j];
         LinkLength(i,j)=norm(NodesLocation(j,:) - NodesLocation(i,:));
-        LinkTime(i,j)=LinkLength(i,j) * 60; % time in seconds, lengths are in minutes! - RI
+        LinkTime(i,j)=LinkLength(i,j);
         LinkFreeFlow(i,j)=LinkLength(i,j)/LinkTime(i,j);
         RoadCap(i,j)=MAXCAP;
     end
