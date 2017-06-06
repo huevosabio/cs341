@@ -834,7 +834,22 @@ for i = 1:cc-1
         ccc = ccc+1;
     end
 end
+figure()
 hist(allWaitTimes, 20)
+fprintf('Mean wait time:   %f\nMedian wait time: %f\n',mean(allWaitTimes),median(allWaitTimes))
+
+allServiceTimes = zeros(numDelivered, 1);
+ccc = 1;
+for i = 1:cc-1
+    if customer(i).delivered
+        allServiceTimes(ccc) = customer(i).serviceTime;
+        ccc = ccc+1;
+    end
+end
+figure()
+hist(allServiceTimes, 20)
+fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTimes),median(allServiceTimes))
+
 
 
 %%
