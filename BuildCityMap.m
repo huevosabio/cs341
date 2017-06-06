@@ -1,5 +1,6 @@
-%LinkTime=csvread('travel_time.csv',4,1);
-%LinkTime=LinkTime*60; %express in seconds
+
+LinkTime=csvread('travel_time.csv',4,1);
+LinkTime=LinkTime*60; %express in seconds
 
 global RoadGraph NodesLocation
 
