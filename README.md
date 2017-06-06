@@ -1,40 +1,10 @@
 # CS 341
 
-# Proposal
+# TODO:
 
-## What is the problem/question your team is solving? 
-_Give a brief but precise description or definition of the problem or question_
-
-## What data will you use? 
-_Why is the data you plan to use appropriate? Does it have the right labels/information?
-It is ok to use your own data_
-
-
-## How will you solve the problem? What is your plan of action? 
-_Describe and think about your approach!
-What method, algorithm, technique? How will you scale it up?_
-
-- 
-
-## How will you evaluate your method? 
-_How will you measure performance or success of your method? What baselines will you use?_
-
-## What do you expect to submit/accomplish by the end of the quarter?
-
-
-## Team Member CVs
-
-### Ramon Iglesias
-
-### Federico Rossi
-
-### Kevin Wang
-
-
-### Questions
-
-- How big is the dataset? Larger than DiDi's challenge?
-- 
-
-
-### Proposal: Causality Model
+- *Simulation*: Allow for trips where origin=dest
+- *Simulation*: Trip tavel time should be = to the real travel time [DONE].
+- *Simulation*: Store state in a way that can be fed to the MPC controller
+- *Controller*: Write MPC controller with predicted demand using the predictor
+- *Predictor*: Write online predictor that reads from offline predictions
+- *Predictor*: (Good to have) Write online predictor
