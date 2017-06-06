@@ -42,7 +42,7 @@ addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 1440*timeStep;    % simulation time
+Tmax = 240*timeStep;    % simulation time
 Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
 v = 5000;
@@ -107,7 +107,7 @@ cumNumCustomers = zeros(Tmax,1);
 numVehiclesBusy = zeros(Tmax, 1);
 numVehiclesRebalancing = zeros(Tmax, 1);
 numVehiclesNotRebalancing = zeros(Tmax, 1);
-numCarsOnLink = cell(Tmax);
+%numCarsOnLink = cell(Tmax);
 carsIdlePrint=zeros(Tmax,numStations);
 carsOnRoadPrint=zeros(Tmax,numStations);
 custWaiting=zeros(Tmax,numStations);
@@ -477,22 +477,23 @@ for t = 1:Tmax-1
         vdesired = floor((sum(vown) - totalCustomers)/numStations)*ones(numStations,1);
         
         if NAIVEFLAG
+            numStations2=numStations;
             % car optimization
-            cvx_begin quiet
-                variable numij(numStations,numStations)
-                minimize (sum(sum(Tij.*numij)));
+            cvx_begin
+                variable numij2(numStations2,numStations2)
+                minimize (sum(sum(Tij.*numij2)));
                 subject to
-                vexcess + sum((numij' - numij)')' >= vdesired;
+                vexcess + sum((numij2' - numij2)')' >= vdesired;
                 % sum(numij')' <= rown;
                 % trace(numij) == 0;
-                numij >= 0;
+                numij2 >= 0;
             cvx_end
             % make sure numij is integer
-            numij = round(numij);            
+            numij2 = round(numij2);            
             % add rebalancing vehicles to queues
             for i = 1:numStations
                 for j = 1:numStations
-                    for k = 1:numij(i,j)
+                    for k = 1:numij2(i,j)
                         rebalanceQueue{i} = [rebalanceQueue{i} j];
                     end
                 end
@@ -729,7 +730,7 @@ for t = 1:Tmax-1
     end
     
     % collect number of vehicles on each link
-    numCarsOnLink{t} = LinkNumVehicles;
+    %numCarsOnLink{t} = LinkNumVehicles;
       
     % plot things
     if PLOTFLAG
@@ -833,69 +834,69 @@ hist(allWaitTimes, 20)
 
 
 %%
-TrafficPlotFlag=0;
-if (TrafficPlotFlag)
-    maxroadcap=full(max(max(RoadCap)));
-    
-    cmap=colormap('jet');
-    crange=size(cmap,1);
-    
-%    maxvdensity=0;
-%     for t=1:Tmax-1
+% TrafficPlotFlag=0;
+% if (TrafficPlotFlag)
+%     maxroadcap=full(max(max(RoadCap)));
+%     
+%     cmap=colormap('jet');
+%     crange=size(cmap,1);
+%     
+% %    maxvdensity=0;
+% %     for t=1:Tmax-1
+% %         for i=1:N
+% %             for j=RoadGraph{i}
+% %                 RelVehicleDensity=numCarsOnLink{t}(i,j)./RoadCap(i,j);
+% %                 if numCarsOnLink{t}(i,j)>0 & RoadCap(i,j)==0
+% %                     fprintf('Error on link %d %d at time %d\n',i,j,t)
+% %                 end
+% %                 maxvdensity=max(maxvdensity,max(max(RelVehicleDensity)));
+% %             end
+% %         end
+% %     end
+%     
+%     
+%     
+%     roads_fig= figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
+% %    hold all
+% 
+%     tempfig=zeros((Tmax)/2-1,1);
+% 
+%     parfor pari=1:(Tmax)/2-1
+%         t=2*pari-1;
+%         tempfig(pari)=figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
+%         hold all
+%                 axis off
+%         set(roads_fig,'MenuBar','none')
+%         set(roads_fig,'ToolBar','none')
 %         for i=1:N
+% 
 %             for j=RoadGraph{i}
-%                 RelVehicleDensity=numCarsOnLink{t}(i,j)./RoadCap(i,j);
-%                 if numCarsOnLink{t}(i,j)>0 & RoadCap(i,j)==0
-%                     fprintf('Error on link %d %d at time %d\n',i,j,t)
-%                 end
-%                 maxvdensity=max(maxvdensity,max(max(RelVehicleDensity)));
+%                 road_dir = [NodesLocation(j,1); NodesLocation(j,2)]-[NodesLocation(i,1); NodesLocation(i,2)];
+%                 road_dir=road_dir./norm(road_dir);
+%                 road_offset = [0 -1;1 0]*road_dir*10;
+%                 %road_thickness=full(RoadCap(i,j)/maxroadcap*8);
+%                 
+%                 colorsatthreshold=1;
+%                 %if (numCarsOnLink{t}(i,j)/RoadCap(i,j) < colorsatthreshold)
+%                 %   mycolor= cmap(round( (numCarsOnLink{t}(i,j)/RoadCap(i,j))/colorsatthreshold*(crange-1)+1),:) ;
+%                 %else
+%                 %    mycolor = cmap(end,:);
+%                 %end
+%                 
+%                 plot([NodesLocation(i,1)+road_offset(1) NodesLocation(j,1)+...
+%                     road_offset(1)], [NodesLocation(i,2)+road_offset(2) NodesLocation(j,2)+road_offset(2)],...
+%                     'Color', mycolor )
+%                 
+%                     
+%                 
 %             end
 %         end
+%         axis equal
+% 
+%         
+%         imagename=strcat('RSSMovie/naiveFrame',sprintf('%0.4d',(t+1)/2))
+%         print('-dpng', imagename)
+%         hold off
+%         close(tempfig(pari))
 %     end
-    
-    
-    
-    roads_fig= figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
-%    hold all
-
-    tempfig=zeros((Tmax)/2-1,1);
-
-    parfor pari=1:(Tmax)/2-1
-        t=2*pari-1;
-        tempfig(pari)=figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
-        hold all
-                axis off
-        set(roads_fig,'MenuBar','none')
-        set(roads_fig,'ToolBar','none')
-        for i=1:N
-
-            for j=RoadGraph{i}
-                road_dir = [NodesLocation(j,1); NodesLocation(j,2)]-[NodesLocation(i,1); NodesLocation(i,2)];
-                road_dir=road_dir./norm(road_dir);
-                road_offset = [0 -1;1 0]*road_dir*10;
-                %road_thickness=full(RoadCap(i,j)/maxroadcap*8);
-                
-                colorsatthreshold=1;
-                if (numCarsOnLink{t}(i,j)/RoadCap(i,j) < colorsatthreshold)
-                   mycolor= cmap(round( (numCarsOnLink{t}(i,j)/RoadCap(i,j))/colorsatthreshold*(crange-1)+1),:) ;
-                else
-                    mycolor = cmap(end,:);
-                end
-                
-                plot([NodesLocation(i,1)+road_offset(1) NodesLocation(j,1)+...
-                    road_offset(1)], [NodesLocation(i,2)+road_offset(2) NodesLocation(j,2)+road_offset(2)],...
-                    'Color', mycolor )
-                
-                    
-                
-            end
-        end
-        axis equal
-
-        
-        imagename=strcat('RSSMovie/naiveFrame',sprintf('%0.4d',(t+1)/2))
-        print('-dpng', imagename)
-        hold off
-        close(tempfig(pari))
-    end
-end
+% end
