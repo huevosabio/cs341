@@ -42,7 +42,7 @@ addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 120*timeStep;    % simulation time
+Tmax = 5*60*timeStep;    % simulation time
 Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
 v = 10000;
@@ -118,7 +118,7 @@ custWaiting=zeros(Tmax,numStations);
 fprintf('Loading demand data...')
 filename = 'ignored_assets/MATLAB_orders.csv';
 MData = csvread(filename,1,1);
-arrivalTimeOffset = (6*3600 + 0*60 + 0*60)/60*timeStep;
+arrivalTimeOffset = (5*3600 + 0*60 + 0*60)/60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
 
