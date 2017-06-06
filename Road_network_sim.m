@@ -42,7 +42,7 @@ addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 240*timeStep;    % simulation time
+Tmax = 1440*timeStep;    % simulation time
 Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
 v = 5000;
@@ -310,28 +310,32 @@ for t = 1:Tmax-1
     end
     
     % new customer arrivals
-    while arrivalTimes(ccTmp) < t
-        %customer arrival and destination locations
-        tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
-        % find the nearest nodes
-        tmpNodes = dsearchn(NodesLocation, tmpCust);
-        if tmpNodes(1) ~= tmpNodes(2)
-            % find the stations
-            tmpStations = dsearchn(StationLocation, tmpCust);
-            % make customer structure
-            customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
-                'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
-                'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
-            % add this customer to the station
-            station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
-            station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
-            cc = cc + 1;
-            ccTmp = ccTmp + 1;
-        else
-            ccTmp = ccTmp + 1;
+    if ccTmp<length(arrivalTimes)
+        while arrivalTimes(ccTmp) < t
+            %customer arrival and destination locations
+            tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
+            % find the nearest nodes
+            tmpNodes = dsearchn(NodesLocation, tmpCust);
+            if tmpNodes(1) ~= tmpNodes(2)
+                % find the stations
+                tmpStations = dsearchn(StationLocation, tmpCust);
+                % make customer structure
+                customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
+                    'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
+                    'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
+                % add this customer to the station
+                station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
+                station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
+                cc = cc + 1;
+                ccTmp = ccTmp + 1;
+            else
+                ccTmp = ccTmp + 1;
+            end
+            if ccTmp>length(arrivalTimes)
+                break
+            end
         end
     end
-    
     % assign vehicles to new customers
     for i = 1:numStations
         % as long as there are cars left or customers waiting
