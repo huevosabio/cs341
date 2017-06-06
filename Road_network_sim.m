@@ -42,10 +42,10 @@ addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 120*timeStep;    % simulation time
+Tmax = 1440*timeStep;    % simulation time
 Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
-v = 10000;
+v = 5000;
 rebPaths = cell(0);
 ccTmp = 1;
 cc = 1;
@@ -135,7 +135,7 @@ stationCounter = 1;
 for i = 1:v
     car(i) = struct('id',i,'passId', 0, 'dstation',stationCounter,'ostation',stationCounter,...
         'dpos', [], 'state', IDLE, 'pos', NodesLocation(station(stationCounter).node_id, :),...
-        'direction',[], 'path', [StationNodeID(stationCounter)], 'dist_left', 0, 'speedfactor', 1);
+        'direction',[], 'path', [StationNodeID(stationCounter)], 'time_left', 0, 'speedfactor', 1);
     % update station data for this car
     station(stationCounter).carIdle = [station(stationCounter).carIdle, i];
     if stationCounter == numStations
@@ -173,27 +173,44 @@ for t = 1:Tmax-1
     % vehicle state transitions
     
     for i = 1:v
-        if car(i).state ~= IDLE && length(car(i).path) == 2 % if it's on the last leg of its trip
+        if car(i).state ~= IDLE && car(i).state ~= SELF_LOOP && length(car(i).path) == 2 % if it's on the last leg of its trip
             distToDest = norm(car(i).dpos - car(i).pos,2);
             if distToDest < car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt
                 % remove car from link
                 LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
                 % shrink path to just final destination
                 car(i).path = car(i).path(2);
+                
+                % Blurb: if the car is on a self-loop and got to the
+                % destination, release it as if it was driving_to_dest. If
+                % the car is driving to pick up and gets a customer and the
+                % customer is on a self-loop, set travel_time and put in
+                % status self_loop. Actually, car never drive to a
+                % customer, since each node is a station: scratch that, go
+                % easy.
+                
                 if car(i).state == DRIVING_TO_PICKUP
                     % pick up customer
-                    car(i).state = DRIVING_TO_DEST;
-                    car(i).pos = car(i).dpos;
-                    if isnan(car(i).pos)
-                        'Error: car position is NaN'
+                    if customer(car(i).passId).onode == customer(car(i).passId).dnode
+                        car(i).state = SELF_LOOP;
+                        car(i).dpos = customer(car(i).passId).dpos;
+                        car(i).dstation = customer(car(i).passId).dstation;
+                        car(i).ostation = customer(car(i).passId).ostation;
+                        car(i).time_left = customer(car(i).passId).traveltime * 60;
+                    else
+                        car(i).state = DRIVING_TO_DEST;
+                        car(i).pos = car(i).dpos;
+                        if isnan(car(i).pos)
+                            'Error: car position is NaN'
+                        end
+                        car(i).dpos = customer(car(i).passId).dpos;
+                        customer(car(i).passId).pickedup = 1;
+                        car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
+                        car(i).speedfactor =  LinkTime(customer(car(i).passId).onode,customer(car(i).passId).dnode) / (customer(car(i).passId).traveltime * 60);
+                        
+                        LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
+                        car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                     end
-                    car(i).dpos = customer(car(i).passId).dpos;
-                    customer(car(i).passId).pickedup = 1;
-                    car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
-                    car(i).speedfactor =  LinkTime(customer(car(i).passId).onode,customer(car(i).passId).dnode) / (customer(car(i).passId).traveltime * 60);
-
-                    LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
-                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
                 elseif car(i).state == DRIVING_TO_DEST
                     % drop off customer
                     car(i).state = DRIVING_TO_STATION;
@@ -258,6 +275,38 @@ for t = 1:Tmax-1
                 end
             end
         end
+        if car(i).state == SELF_LOOP && car(i).time_left < dt
+            car(i).state = DRIVING_TO_STATION;
+            car(i).pos = customer(car(i).passId).dpos;
+            if isnan(car(i).pos)
+                'Error: car position is NaN'
+            end
+            car(i).dpos = StationLocation(customer(car(i).passId).dstation, :);
+            % route car to station
+            car(i).path = findRoute(car(i).path(1), station(customer(car(i).passId).dstation).node_id, LinkTime);
+            tmpindex = find(station(customer(car(i).passId).ostation).custId == car(i).passId);
+            % remove customer from the origin station
+            station(customer(car(i).passId).ostation).custId = [station(customer(car(i).passId).ostation).custId(1:tmpindex-1), station(customer(car(i).passId).ostation).custId(tmpindex+1:end)];
+            % car is now free to receive assignments from station
+            
+            customer(car(i).passId).delivered = 1;
+            car(i).passId = 0;
+            
+            % return to normal speed
+            car(i).speedfactor = 1;
+            
+            % if the destination was already a station
+            if length(car(i).path) == 1
+                car(i).state = IDLE;
+                car(i).ostation = car(i).dstation;
+                station(car(i).ostation).carIdle = [station(car(i).ostation).carIdle, car(i).id];
+            else
+                station(car(i).dstation).carOnRoad = [station(car(i).dstation).carOnRoad, car(i).id];
+                LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
+                car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
+            end
+            
+        end
     end
     
     % new customer arrivals
@@ -316,55 +365,73 @@ for t = 1:Tmax-1
             % assign route to the vehicle
             %assignedCarID
             %car(assignedCarID).passId = custInd;
-            tmpPath = car(assignedCarID).path;
-            car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).onode, LinkTime); % TODO, make LinkTime
-            alreadyAtPickup = 0;
-            if length(tmpPath) == 1 && length(car(assignedCarID).path) == 1
-                % vehicle is not initially in motion (at a station)
-                % go straight to routing delivery
-                alreadyAtPickup = 1;
-                car(assignedCarID).state = DRIVING_TO_DEST;
-                car(assignedCarID).dpos = customer(custInd).dpos;
-                customer(custInd).pickedup = 1;
+            if customer(custInd).onode==customer(custInd).dnode
+                % Do not assign a path. Just wait a set time taken from the
+                %  customer's actual travel time
                 
-                % route the new path using the customer speed
-                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime); 
-                car(assignedCarID).speedfactor =  LinkTime(customer(custInd).onode,customer(custInd).dnode) / (customer(custInd).traveltime * 60);
+                car(assignedCarID).state = SELF_LOOP;
+                car(assignedCarID).dpos = customer(custInd).dpos;
+                car(assignedCarID).dstation = customer(custInd).dstation;
+                car(assignedCarID).ostation = i;
+                car(assignedCarID).passId = custInd;
+                car(assignedCarID).time_left = customer(custInd).traveltime * 60;
+                
+                customer(custInd).pickedup = 1;
             else
-                % vehicle is in motion.
-                if length(car(assignedCarID).path) == 1
-                    car(assignedCarID).path = [tmpPath(2) tmpPath(1)];
-                elseif length(tmpPath) > 1
-                    if car(assignedCarID).path(2) ~= tmpPath(2)
-                        % go a different way - make U-turn
-                        car(assignedCarID).path = [tmpPath(2) car(assignedCarID).path];
+                tmpPath = car(assignedCarID).path;
+                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).onode, LinkTime); % TODO, make LinkTime
+                alreadyAtPickup = 0;
+                
+                % TODO blurb: if the customer's start and destination are the
+                % same, assign state SELF_LOOP
+                
+                if length(tmpPath) == 1 && length(car(assignedCarID).path) == 1
+                    % vehicle is not initially in motion (at a station)
+                    % go straight to routing delivery
+                    alreadyAtPickup = 1;
+                    car(assignedCarID).state = DRIVING_TO_DEST;
+                    car(assignedCarID).dpos = customer(custInd).dpos;
+                    customer(custInd).pickedup = 1;
+                    
+                    % route the new path using the customer speed
+                    car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime);
+                    car(assignedCarID).speedfactor =  LinkTime(customer(custInd).onode,customer(custInd).dnode) / (customer(custInd).traveltime * 60);
+                else
+                    % vehicle is in motion.
+                    if length(car(assignedCarID).path) == 1
+                        car(assignedCarID).path = [tmpPath(2) tmpPath(1)];
+                    elseif length(tmpPath) > 1
+                        if car(assignedCarID).path(2) ~= tmpPath(2)
+                            % go a different way - make U-turn
+                            car(assignedCarID).path = [tmpPath(2) car(assignedCarID).path];
+                        end
                     end
                 end
-            end
-            if length(car(assignedCarID).path) > 1
-                LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2)) = LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2))+1;
-            end
-            
-            % remove assigned car from station
-            if ~isempty(station(i).carIdle) && assignedCarID == station(i).carIdle(1)
-                station(i).carIdle = station(i).carIdle(2:end);
-            else
-                station(i).carOnRoad = [station(i).carOnRoad(1:carOnRoadIndex-1), station(i).carOnRoad(carOnRoadIndex+1:end)];
-            end
-            % assign the car to the customer
-            car(assignedCarID).dstation = customer(custInd).dstation;
-            car(assignedCarID).ostation = i;
-            if ~alreadyAtPickup
-                car(assignedCarID).state = DRIVING_TO_PICKUP;
-                car(assignedCarID).dpos = customer(custInd).opos;
-            end
-            car(assignedCarID).passId = custInd;
-            
-            % direction vector
-            if length(car(assignedCarID).path) > 1 
-                tmpNode2 = car(assignedCarID).path(2);
-                tmpNode1 = car(assignedCarID).path(1);
-                car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
+                if length(car(assignedCarID).path) > 1
+                    LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2)) = LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2))+1;
+                end
+                
+                % remove assigned car from station
+                if ~isempty(station(i).carIdle) && assignedCarID == station(i).carIdle(1)
+                    station(i).carIdle = station(i).carIdle(2:end);
+                else
+                    station(i).carOnRoad = [station(i).carOnRoad(1:carOnRoadIndex-1), station(i).carOnRoad(carOnRoadIndex+1:end)];
+                end
+                % assign the car to the customer
+                car(assignedCarID).dstation = customer(custInd).dstation;
+                car(assignedCarID).ostation = i;
+                if ~alreadyAtPickup
+                    car(assignedCarID).state = DRIVING_TO_PICKUP;
+                    car(assignedCarID).dpos = customer(custInd).opos;
+                end
+                car(assignedCarID).passId = custInd;
+                
+                % direction vector
+                if length(car(assignedCarID).path) > 1
+                    tmpNode2 = car(assignedCarID).path(2);
+                    tmpNode1 = car(assignedCarID).path(1);
+                    car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
+                end
             end
             % remove unassigned customer from station
             station(i).custUnassigned = station(i).custUnassigned(2:end);
@@ -591,36 +658,40 @@ for t = 1:Tmax-1
     
     % move vehicles
     for i = 1:v
-        if length(car(i).path) > 1
-            if norm(NodesLocation(car(i).path(2),:)-car(i).pos) < car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt
-                % need to go to the next node (or stop)
-                
-                residualDistance = car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt - norm(NodesLocation(car(i).path(2),:)-car(i).pos);
-                
-                if length(car(i).path) > 2
-                    LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
-                    car(i).path = car(i).path(2:end);
-                    car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
-                    car(i).pos = NodesLocation(car(i).path(1),:) + car(i).direction*residualDistance;
-                    if isnan(car(i).pos)
-                        'ERROR: car position is NaN'
+        if car(i).state == SELF_LOOP
+            car(i).time_left=car(i).time_left-dt;
+        else
+            if length(car(i).path) > 1
+                if norm(NodesLocation(car(i).path(2),:)-car(i).pos) < car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt
+                    % need to go to the next node (or stop)
+                    
+                    residualDistance = car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt - norm(NodesLocation(car(i).path(2),:)-car(i).pos);
+                    
+                    if length(car(i).path) > 2
+                        LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) - 1;
+                        car(i).path = car(i).path(2:end);
+                        car(i).direction = (NodesLocation(car(i).path(2),:) - NodesLocation(car(i).path(1),:)); car(i).direction=car(i).direction/norm(car(i).direction);
+                        car(i).pos = NodesLocation(car(i).path(1),:) + car(i).direction*residualDistance;
+                        if isnan(car(i).pos)
+                            'ERROR: car position is NaN'
+                        end
+                        LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
+                    else
+                        car(i).pos = NodesLocation(car(i).path(2),:);
+                        if isnan(car(i).pos)
+                            'Error: car position is NaN'
+                        end
                     end
-                    LinkNumVehicles(car(i).path(1), car(i).path(2)) = LinkNumVehicles(car(i).path(1), car(i).path(2)) + 1;
+                    
                 else
-                    car(i).pos = NodesLocation(car(i).path(2),:);
+                    % don't need to go to the next node
+                    car(i).pos = car(i).pos + car(i).direction * car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt;
                     if isnan(car(i).pos)
                         'Error: car position is NaN'
                     end
                 end
                 
-            else
-                % don't need to go to the next node
-                car(i).pos = car(i).pos + car(i).direction * car(i).speedfactor * LinkSpeed(car(i).path(1), car(i).path(2))*dt;
-                if isnan(car(i).pos)
-                        'Error: car position is NaN'
-                end
             end
-            
         end
     end
     
