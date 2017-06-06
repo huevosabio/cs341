@@ -604,7 +604,7 @@ for t = 1:Tmax-1
                 car(assignedCarID).state = REBALANCING;
                 car(assignedCarID).dpos = StationLocation(currDest,:);
                 tmpPath = car(assignedCarID).path;
-                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime); 
+                car(assignedCarID).path = findRoute(tmpPath(1), currDest, LinkTime); 
                 
                 if length(tmpPath) > 1 && length(car(assignedCarID).path) > 1
                     if car(assignedCarID).path(2) ~= tmpPath(2)
