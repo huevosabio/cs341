@@ -132,6 +132,11 @@ avgWaitTimes = zeros(Tmax,1);
 cumNumCustomers = zeros(Tmax,1);
 numVehiclesBusy = zeros(Tmax, 1);
 numVehiclesRebalancing = zeros(Tmax, 1);
+numVehiclesDrivingToPickup = numVehiclesRebalancing;
+numVehiclesDrivingToDest = numVehiclesRebalancing;
+numVehiclesDrivingToStation = numVehiclesRebalancing;
+numVehiclesOnSelfLoop =  numVehiclesRebalancing;
+numVehiclesIdle = numVehiclesRebalancing;
 numVehiclesNotRebalancing = zeros(Tmax, 1);
 %numCarsOnLink = cell(Tmax);
 carsIdlePrint=zeros(Tmax,numStations);
@@ -822,6 +827,20 @@ for t = 1:Tmax-1
             if car(i).state == REBALANCING
                 numVehiclesRebalancing(t) = numVehiclesRebalancing(t) + 1;
             end
+            if car(i).state == DRIVING_TO_PICKUP
+                numVehiclesDrivingToPickup(t) = numVehiclesDrivingToPickup(t)+1;
+            end
+            if car(i).state == DRIVING_TO_DEST
+                numVehiclesDrivingToDest(t) = numVehiclesDrivingToDest(t)+1;
+            end
+            if car(i).state == DRIVING_TO_STATION
+                numVehiclesDrivingToStation(t) = numVehiclesDrivingToStation(t)+1;
+            end
+            if car(i).state == SELF_LOOP
+                numVehiclesOnSelfLoop(t) = numVehiclesOnSelfLoop(t)+1;
+            end
+        else
+            numVehiclesIdle(t) = numVehiclesIdle(t)+1;
         end
     end
     
@@ -1011,3 +1030,6 @@ fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTime
 %         close(tempfig(pari))
 %     end
 % end
+
+savename = ['ReactiveSim_',num2str(v),'v_rev3'];
+save(savename);
