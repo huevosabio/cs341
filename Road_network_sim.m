@@ -36,14 +36,14 @@
 
 % 3. 
 
-
+clear all;
 addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 240*timeStep;    % simulation time
-Thor = 2*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
+Tmax = 60*27*timeStep;    % simulation time
+Thor = 5*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
 v = 5000;
 rebPaths = cell(0);
@@ -54,8 +54,14 @@ PLOTFLAG = 0;
 PLOTREBFLAG = 1;
 NAIVEFLAG = 1;
 rebCount = 1;
+MPCFLAG = 1;
 
 
+if MPCFLAG
+    % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
+    load('didi.mat')
+    load('perfect_predictions.mat')
+end
 
 if PLOTFLAG
     movieCounter = 1;
@@ -79,6 +85,26 @@ BuildCityMap;
 % NodesLocation = x and y location of each node
 % NodesLatLon = lat and lon of each node
 % 
+
+
+if MPCFLAG
+
+    % MPC variables
+    predictionStep = 5*timeStep; % number of steps a prediction covers
+    horizon = 50; % longest travel time is 44 steps...
+
+    RoadNetwork.T = horizon;
+    RoadNetwork.RoadGraph = RoadGraph;
+    RoadNetwork.TravelTimes = TravelTimes;
+
+    Flags.milpflag = 0;
+    Flags.congrelaxflag = 0;
+    Flags.sourcerelaxflag = 1;
+    Flags.cachedAeqflag = 0;
+
+    RebWeight = 5.0; % how much more expensive it is to rebalance than to remain idle
+
+end
 
 LoadStateDefinitions;
 
@@ -118,7 +144,7 @@ custWaiting=zeros(Tmax,numStations);
 fprintf('Loading demand data...')
 filename = 'ignored_assets/MATLAB_orders.csv';
 MData = csvread(filename,1,1);
-arrivalTimeOffset = (5*3600 + 0*60 + 0*60)/60*timeStep;
+arrivalTimeOffset = (0*3600 + 0*60 + 0*60)/60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
 
@@ -310,25 +336,30 @@ for t = 1:Tmax-1
     end
     
     % new customer arrivals
-    while arrivalTimes(ccTmp) < t
-        %customer arrival and destination locations
-        tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
-        % find the nearest nodes
-        tmpNodes = dsearchn(NodesLocation, tmpCust);
-        if tmpNodes(1) ~= tmpNodes(2)
-            % find the stations
-            tmpStations = dsearchn(StationLocation, tmpCust);
-            % make customer structure
-            customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
-                'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
-                'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
-            % add this customer to the station
-            station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
-            station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
-            cc = cc + 1;
-            ccTmp = ccTmp + 1;
-        else
-            ccTmp = ccTmp + 1;
+    if ccTmp <= max(size(arrivalTimes))
+        while arrivalTimes(ccTmp) < t
+            %customer arrival and destination locations
+            tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
+            % find the nearest nodes
+            tmpNodes = dsearchn(NodesLocation, tmpCust);
+            if tmpNodes(1) ~= tmpNodes(2)
+                % find the stations
+                tmpStations = dsearchn(StationLocation, tmpCust);
+                % make customer structure
+                customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
+                    'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
+                    'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
+                % add this customer to the station
+                station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
+                station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
+                cc = cc + 1;
+                ccTmp = ccTmp + 1;
+            else
+                ccTmp = ccTmp + 1;
+            end
+            if ccTmp > max(size(arrivalTimes))
+                break
+            end
         end
     end
     
@@ -477,26 +508,76 @@ for t = 1:Tmax-1
         vdesired = floor((sum(vown) - totalCustomers)/numStations)*ones(numStations,1);
         
         if NAIVEFLAG
-            numStations2=numStations;
-            % car optimization
-            cvx_begin
-                variable numij2(numStations2,numStations2)
-                minimize (sum(sum(Tij.*numij2)));
-                subject to
-                vexcess + sum((numij2' - numij2)')' >= vdesired;
-                % sum(numij')' <= rown;
-                % trace(numij) == 0;
-                numij2 >= 0;
-            cvx_end
-            % make sure numij is integer
-            numij2 = round(numij2);            
-            % add rebalancing vehicles to queues
-            for i = 1:numStations
-                for j = 1:numStations
-                    for k = 1:numij2(i,j)
-                        rebalanceQueue{i} = [rebalanceQueue{i} j];
+            if ~MPCFLAG
+                numStations2=numStations;
+                % car optimization
+                cvx_begin
+                    variable numij2(numStations2,numStations2)
+                    minimize (sum(sum(Tij.*numij2)));
+                    subject to
+                    vexcess + sum((numij2' - numij2)')' >= vdesired;
+                    % sum(numij')' <= rown;
+                    % trace(numij) == 0;
+                    numij2 >= 0;
+                cvx_end
+                % make sure numij is integer
+                numij2 = round(numij2);            
+                % add rebalancing vehicles to queues
+                for i = 1:numStations
+                    for j = 1:numStations
+                        for k = 1:numij2(i,j)
+                            rebalanceQueue{i} = [rebalanceQueue{i} j];
+                        end
                     end
                 end
+            else
+                % MPC stuff
+
+                % load passenger predictions into FlowsOut + FlowsIn
+                % predictions are in 5 min intervals
+                currentTime = t / predictionStep;
+                
+                predleftin = min(size(FlowsIn{currentTime},1), horizon);
+                predleftout = min(size(FlowsOut{currentTime},1), horizon);
+                Passengers.FlowsIn = zeros(horizon,numStations);
+                Passengers.FlowsOut = zeros(horizon,numStations);
+                RoadNetwork.Starters = zeros(numStations,1);
+                if predleftin > 0
+                    % flowsin
+                    Passengers.FlowsIn(1:predleftin,:) = Passengers.FlowsIn(1:predleftin,:) + double(FlowsIn{currentTime}(1:predleftin,:));
+                end
+                if predleftout > 0
+                    %flowsout
+                    Passengers.FlowsOut(1:predleftout,:) = Passengers.FlowsOut(1:predleftout,:) + double(FlowsOut{currentTime}(1:predleftout,:));
+                end
+                % load current trips/rebalancing into FlowsIn
+                for i = 1:v
+                    % if the car is in the process of pickup or dropoff
+                    if car(i).state == DRIVING_TO_DEST  || car(i).state == DRIVING_TO_STATION || car(i).state == REBALANCING
+                        distToDest = norm(car(i).dpos - car(i).pos,2);
+                        eta = distToDest / car(i).speedfactor;
+                        tin = ceil(eta / (predictionStep / timeStep));
+                        if tin < horizon && tin > 0
+                            Passengers.FlowsIn(tin,car(i).dstation) = Passengers.FlowsIn(tin,car(i).dstation) + 1;
+                        elseif tin < horizon
+                            RoadNetwork.Starters(car(i).ostation) = RoadNetwork.Starters(car(i).dstation) + 1;
+                        end
+                    elseif car(i).state == SELF_LOOP
+                        eta = car(i).time_left;
+                        tin = ceil(eta / (predictionStep / timeStep));
+                        if tin < horizon && tin > 0
+                            Passengers.FlowsIn(tin,car(i).dstation) = Passengers.FlowsIn(tin,car(i).dstation) + 1;
+                        elseif tin < horizon
+                            RoadNetwork.Starters(car(i).ostation) = RoadNetwork.Starters(car(i).dstation) + 1;
+                        end
+                    elseif car(i).state == IDLE
+                        RoadNetwork.Starters(car(i).ostation) = RoadNetwork.Starters(car(i).ostation) + 1;
+                    end
+                end
+                % load waiting customers into FlowsOut
+
+                % run!
+                [rebalanceQueue] = ModelPredictiveReb(RoadNetwork,RebWeight,Passengers,Flags);
             end
         else
             % calculate difference between the floor value and the actual
@@ -600,7 +681,7 @@ for t = 1:Tmax-1
                 car(assignedCarID).state = REBALANCING;
                 car(assignedCarID).dpos = StationLocation(currDest,:);
                 tmpPath = car(assignedCarID).path;
-                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime); 
+                car(assignedCarID).path = findRoute(tmpPath(1), StationNodeID(currDest), LinkTime); 
                 
                 if length(tmpPath) > 1 && length(car(assignedCarID).path) > 1
                     if car(assignedCarID).path(2) ~= tmpPath(2)
@@ -890,7 +971,7 @@ hist(allWaitTimes, 20)
 %                     
 %                 
 %             end
-%         end
+%         end 
 %         axis equal
 % 
 %         
