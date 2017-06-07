@@ -42,7 +42,7 @@ addpath('C:\Program Files\IBM\ILOG\CPLEX_Studio126\cplex\matlab\x64_win64');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 timeStep = 10;      % number of time steps per minute
 dt = 60/timeStep;   % length of each time step
-Tmax = 60*27*timeStep;    % simulation time
+Tmax = 60*24*timeStep;    % simulation time
 Thor = 5*timeStep;      % rebalancing time horizon (for real-time algorithm) for vehicles
 Tthresh = 0;     % at what time to start gathering data
 v = 5000;
@@ -362,7 +362,6 @@ for t = 1:Tmax-1
             end
         end
     end
-    
     % assign vehicles to new customers
     for i = 1:numStations
         % as long as there are cars left or customers waiting
@@ -911,7 +910,22 @@ for i = 1:cc-1
         ccc = ccc+1;
     end
 end
+figure()
 hist(allWaitTimes, 20)
+fprintf('Mean wait time:   %f\nMedian wait time: %f\n',mean(allWaitTimes),median(allWaitTimes))
+
+allServiceTimes = zeros(numDelivered, 1);
+ccc = 1;
+for i = 1:cc-1
+    if customer(i).delivered
+        allServiceTimes(ccc) = customer(i).serviceTime;
+        ccc = ccc+1;
+    end
+end
+figure()
+hist(allServiceTimes, 20)
+fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTimes),median(allServiceTimes))
+
 
 
 %%
