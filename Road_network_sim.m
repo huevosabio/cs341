@@ -1011,3 +1011,6 @@ fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTime
 %         close(tempfig(pari))
 %     end
 % end
+
+savename = ['ReactiveSim_',num2str(v),'v_rev3'];
+save(savename);
