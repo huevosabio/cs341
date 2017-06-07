@@ -144,7 +144,7 @@ custWaiting=zeros(Tmax,numStations);
 fprintf('Loading demand data...')
 filename = 'ignored_assets/MATLAB_orders.csv';
 MData = csvread(filename,1,1);
-arrivalTimeOffset = (0*3600 + 0*60 + 0*60)/60*timeStep;
+arrivalTimeOffset = (0*3600 + -5*MPCFLAG*60 + 0)/60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
 
@@ -342,21 +342,21 @@ for t = 1:Tmax-1
             tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
             % find the nearest nodes
             tmpNodes = dsearchn(NodesLocation, tmpCust);
-            if tmpNodes(1) ~= tmpNodes(2)
-                % find the stations
-                tmpStations = dsearchn(StationLocation, tmpCust);
-                % make customer structure
-                customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
-                    'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
-                    'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
-                % add this customer to the station
-                station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
-                station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
-                cc = cc + 1;
-                ccTmp = ccTmp + 1;
-            else
-                ccTmp = ccTmp + 1;
-            end
+            %if tmpNodes(1) ~= tmpNodes(2)
+            % find the stations
+            tmpStations = dsearchn(StationLocation, tmpCust);
+            % make customer structure
+            customer(cc) = struct('opos',NodesLocation(tmpNodes(1),:), 'dpos', NodesLocation(tmpNodes(2),:),...
+                'onode', tmpNodes(1), 'dnode', tmpNodes(2), 'ostation',tmpStations(1), 'dstation', tmpStations(2), ...
+                'waitTime',0,'serviceTime',0,'pickedup',0,'delivered',0, 'traveltime', MData(ccTmp,10));
+            % add this customer to the station
+            station(customer(cc).ostation).custId = [station(customer(cc).ostation).custId  cc];
+            station(customer(cc).ostation).custUnassigned = [station(customer(cc).ostation).custUnassigned  cc];
+            cc = cc + 1;
+            ccTmp = ccTmp + 1;
+            %else
+            %    ccTmp = ccTmp + 1;
+            %end
             if ccTmp > max(size(arrivalTimes))
                 break
             end
@@ -555,7 +555,7 @@ for t = 1:Tmax-1
                     if car(i).state == DRIVING_TO_DEST  || car(i).state == DRIVING_TO_STATION || car(i).state == REBALANCING
                         distToDest = norm(car(i).dpos - car(i).pos,2);
                         eta = distToDest / car(i).speedfactor;
-                        tin = ceil(eta / (predictionStep / timeStep));
+                        tin = ceil(eta / (predictionStep * dt));
                         if tin < horizon && tin > 0
                             Passengers.FlowsIn(tin,car(i).dstation) = Passengers.FlowsIn(tin,car(i).dstation) + 1;
                         elseif tin < horizon
@@ -563,7 +563,7 @@ for t = 1:Tmax-1
                         end
                     elseif car(i).state == SELF_LOOP
                         eta = car(i).time_left;
-                        tin = ceil(eta / (predictionStep / timeStep));
+                        tin = ceil(eta / (predictionStep * dt));
                         if tin < horizon && tin > 0
                             Passengers.FlowsIn(tin,car(i).dstation) = Passengers.FlowsIn(tin,car(i).dstation) + 1;
                         elseif tin < horizon
@@ -573,7 +573,23 @@ for t = 1:Tmax-1
                         RoadNetwork.Starters(car(i).ostation) = RoadNetwork.Starters(car(i).ostation) + 1;
                     end
                 end
-                % load waiting customers into FlowsOut
+                % load waiting customers into FlowsOut/FlowsIn
+                for st=1:numStations
+                    for cu=1:length(station(st).custUnassigned)
+                        custInd = station(st).custUnassigned(cu);
+                        if customer(custInd).onode ~= customer(custInd).dnode
+                            eta = LinkTime(customer(custInd).onode, customer(custInd).dnode);
+                            tin = ceil(eta / (predictionStep * dt));
+                        else 
+                            tin = 2;
+                        end
+                        tout = 1;
+                        if tin < horizon && tin > 0
+                            Passengers.FlowsIn(tin,customer(custInd).dnode) = Passengers.FlowsIn(tin,customer(custInd).dnode) + 1;
+                        end
+                        Passengers.FlowsOut(tout,customer(custInd).onode) = Passengers.FlowsOut(tout,customer(custInd).onode) + 1; 
+                    end
+                end
 
                 % run!
                 [rebalanceQueue] = ModelPredictiveReb(RoadNetwork,RebWeight,Passengers,Flags);

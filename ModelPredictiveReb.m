@@ -121,8 +121,8 @@ end
 %CumNumSinksPerSource=[0; CumNumSinksPerSource(1:end-1)];
 
 
-StateSize= E*T + T*S;
-numFlowVariables = E*T;
+StateSize= E*(T-1) + (T-1)*S;
+numFlowVariables = E*(T-1);
 
 
 if debugflag
@@ -131,7 +131,7 @@ end
 
 
 FindRoadLinkRtij=     @(t,i,j)   (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
-FindSourceRelaxti= @(t,i) T*E + (t-1)*S + i;
+FindSourceRelaxti= @(t,i) (T-1)*E + (t-1)*S + i;
 %FindStartRi= @(i)   T*E + i;
 %FindBreaksRi= @(i)   T*E + S + i;
 
@@ -144,7 +144,7 @@ f_cost=zeros(StateSize,1);
 % rebalancers' travel time
 for i=1:N
     for j=RoadGraph{i}
-        for t=1:T
+        for t=1:(T-1)
             if i ~= j
                 f_cost(FindRoadLinkRtij(t,i,j))= RebWeight*TravelTimes(i,j); %
             else
@@ -200,7 +200,10 @@ if debugflag
     disp('Building road map for rebalancers')
     fprintf('Time step: ')
 end
-% we ignore the last equality, we don't care about it anyway
+% we want the remaining vehicles to be evenly distributed
+vdesired = max(floor((sum(Starters) + sum(sum(FlowsIn)) - sum(sum(FlowsOut))) / S), 0);
+Breakers = zeros(S,1);
+Breakers(1:end) = vdesired;
 for t=1:T-1
     if debugflag
         fprintf(' %d/%d ',t,T)
@@ -228,6 +231,8 @@ for t=1:T-1
         end
         if t==1
             Beq(Aeqrow)= Starters(i) + FlowsIn(t,i) - FlowsOut(t,i);
+        elseif t == T-1
+            Beq(Aeqrow)= FlowsIn(t,i) - FlowsOut(t,i) - Breakers(i);
         else
             Beq(Aeqrow)= FlowsIn(t,i) - FlowsOut(t,i);
         end
