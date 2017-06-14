@@ -64,6 +64,7 @@ DIAGNOSTIC_FLAG=0;  % Diagnoses state allocation. Useful for initial debugging.
 
 %CongestionCost=1e3; %The cost of violating the congestion constraint
 SourceRelaxCost=1e6;     % The cost of dropping a source or sink altogether
+WaitTimeCost   = 10;     %The cost per unit of time of letting a starter wait.
 
 %Clean up road graph.
 for i=1:length(RoadGraph)
@@ -121,7 +122,7 @@ end
 %CumNumSinksPerSource=[0; CumNumSinksPerSource(1:end-1)];
 
 
-StateSize= E*(T-1) + (T-1)*S;
+StateSize= E*(T-1) + (T-1)*S + T*N;
 numFlowVariables = E*(T-1);
 
 
@@ -132,6 +133,7 @@ end
 
 FindRoadLinkRtij=     @(t,i,j)   (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 FindSourceRelaxti= @(t,i) (T-1)*E + (t-1)*S + i;
+FindStarterTimeti= @(t,i) E*(T-1) + (T-1)*S + (t-1)*S + i;
 %FindStartRi= @(i)   T*E + i;
 %FindBreaksRi= @(i)   T*E + S + i;
 
@@ -150,8 +152,12 @@ for i=1:N
             else
                 f_cost(FindRoadLinkRtij(t,i,j))= TravelTimes(i,j);
             end
-            f_cost(FindSourceRelaxti(t,i)) = SourceRelaxCost;
+            
         end
+    end
+    for t=1:T-1
+        f_cost(FindSourceRelaxti(t,i)) = SourceRelaxCost;
+        f_cost(FindStarterTimeti(t,i)) = WaitTimeCost*t;
     end
 end
 
@@ -160,16 +166,8 @@ if (debugflag)
     disp('Initializing constraints')
 end
 
-% Vehicles: N*(M+1)*C + S + TotNumSinks equality constraints, one per node and per flow and
-%   per charge level plus one for each source (for the fractions), 
-%   and one per class (where we choose the charge distribution at the sink of the flows)
-% 2*(E+NumChargers)*(M+1)*C + 2*M*C + 2*TotNumSinks*C + C*S + C*TotNumSinks entries, two per link (including chargers) per
-%   flow per charge level plus three per class, two in the conservation plus one
-%   in the sum(FindPaxSinkChargeck(:,k)) = Flows(k), and one per fraction 
-%   for the sum(FindChargeFractioncs(:,s)) =1
-
-n_eq_constr = N*(T-1);
-n_eq_entries = 2*E*(T-1);
+n_eq_constr = N*(T-1) + N;
+n_eq_entries = 2*E*(T-1) + S*(T-1);
 
 if sourcerelaxflag
     n_eq_entries=n_eq_entries+S*(T-1);
@@ -225,12 +223,18 @@ for t=1:T-1
                 end
             end
         end
+        %Starters
+        Aeqsparse(Aeqentry,:)=[Aeqrow,FindStarterTimeti(t,i), -1];
+        Aeqentry=Aeqentry+1;
+        
+        
         if sourcerelaxflag
             Aeqsparse(Aeqentry,:)=[Aeqrow,FindSourceRelaxti(t,i),-1];
             Aeqentry=Aeqentry+1;
         end
         if t==1
-            Beq(Aeqrow)= Starters(i) + FlowsIn(t,i) - FlowsOut(t,i);
+            %Beq(Aeqrow)= Starters(i) + FlowsIn(t,i) - FlowsOut(t,i);
+            Beq(Aeqrow)= FlowsIn(t,i) - FlowsOut(t,i);
         elseif t == T-1
             Beq(Aeqrow)= FlowsIn(t,i) - FlowsOut(t,i) - Breakers(i);
         else
@@ -238,6 +242,15 @@ for t=1:T-1
         end
         Aeqrow=Aeqrow+1;
     end
+end
+
+for i=1:S
+    for t=1:T-1
+        Aeqsparse(Aeqentry,:)=[Aeqrow,FindStarterTimeti(t,i), 1];
+        Aeqentry=Aeqentry+1;
+    end
+    Beq(Aeqrow)= Starters(i);
+    Aeqrow=Aeqrow+1;
 end
 
 if debugflag
