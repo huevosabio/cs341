@@ -1,6 +1,6 @@
 clear all; close all; clc;
 
-fileslist={'ReactiveSim_5000v_rev2','ReactiveSim_7500v_rev2','ReactiveSim_9800v_rev2'};
+fileslist={'ReactiveSim_5000v_rev3'}%,'ReactiveSim_7500v_rev2','ReactiveSim_9800v_rev2','mpcperfect'};
 
 for fid = 1:length(fileslist)
     load(fileslist{fid})

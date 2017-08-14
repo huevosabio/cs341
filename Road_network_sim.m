@@ -56,11 +56,12 @@ NAIVEFLAG = 1;
 rebCount = 1;
 MPCFLAG = 1;
 
+SIMNAME = 'MPC-LSTM';
 
 if MPCFLAG
     % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
     load('didi.mat')
-    load('perfect_predictions.mat')
+    load('lstm_predictions.mat')
 end
 
 if PLOTFLAG
@@ -548,7 +549,8 @@ for t = 1:Tmax-1
                 RoadNetwork.Starters = zeros(numStations,1);
                 if predleftin > 0
                     % flowsin
-                    Passengers.FlowsIn(1:predleftin,:) = Passengers.FlowsIn(1:predleftin,:) + double(FlowsIn{currentTime}(1:predleftin,:));
+                    % TODO: removing for testing purposes.
+                    Passengers.FlowsIn(1:predleftin,:) = Passengers.FlowsIn(1:predleftin,:); + double(FlowsIn{currentTime}(1:predleftin,:));
                 end
                 if predleftout > 0
                     %flowsout
@@ -584,11 +586,11 @@ for t = 1:Tmax-1
                         custInd = station(st).custUnassigned(cu);
                         if customer(custInd).onode ~= customer(custInd).dnode
                             eta = LinkTime(customer(custInd).onode, customer(custInd).dnode);
-                            tin = ceil(eta / (predictionStep * dt));
+                            tin = ceil(eta / (predictionStep * dt)) + 1;
                         else 
-                            tin = 2;
+                            tin = 2 + 1;
                         end
-                        tout = 1;
+                        tout = 1 + 1;
                         if tin < horizon && tin > 0
                             Passengers.FlowsIn(tin,customer(custInd).dnode) = Passengers.FlowsIn(tin,customer(custInd).dnode) + 1;
                         end
@@ -1031,5 +1033,5 @@ fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTime
 %     end
 % end
 
-savename = ['ReactiveSim_',num2str(v),'v_rev3'];
+savename = [SIMNAME,num2str(v),'v_rev3'];
 save(savename);
