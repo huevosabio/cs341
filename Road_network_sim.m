@@ -549,7 +549,6 @@ for t = 1:Tmax-1
                 RoadNetwork.Starters = zeros(numStations,1);
                 if predleftin > 0
                     % flowsin
-                    % TODO: removing for testing purposes.
                     Passengers.FlowsIn(1:predleftin,:) = Passengers.FlowsIn(1:predleftin,:); + double(FlowsIn{currentTime}(1:predleftin,:));
                 end
                 if predleftout > 0

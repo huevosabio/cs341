@@ -10,9 +10,9 @@
 ## Strategies
 
 
-|             |          Predictor            ||
-Controller    | TO | TOD | TODTT | FlowsIn/Out | 
- ------------ |:--:|:---:|:-----:|:-----------:|
-Origin Slack  | E  |     |       |             |
-TOD Postpone  |    |     |       |             |
-Ignore F-In   | E  |     |       |             |
+
+|Controller \ Predictor   | TO | TOD | TODTT | FlowsIn/Out | 
+| ----------------------- |:--:|:---:|:-----:|:-----------:|
+|**Origin Slack**         | E  |     |       |             |
+|**TOD Postpone**         |    |     |       |             |
+|**Ignore Flows-In**      | E  |     |       |             |
