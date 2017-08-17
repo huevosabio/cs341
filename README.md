@@ -1,40 +1,18 @@
 # CS 341
 
-# Proposal
+# TODO:
 
-## What is the problem/question your team is solving? 
-_Give a brief but precise description or definition of the problem or question_
-
-## What data will you use? 
-_Why is the data you plan to use appropriate? Does it have the right labels/information?
-It is ok to use your own data_
+- *Controller*: Currently, demand that is _not_ satisfied simply gets ignored. Moreover, we ignore `FlowsOut`, but not `FlowsIn`. When we "ignore" a demand, we should be postponing it, such that the corresponding demand get's postponed. This might ruin our integrality either by forcing us to use non-integral predictions or making our LP non-TUM. Also, it would make the problem significantly larger since we will likely end up with at least `M+1` classes, where `M` is the number of stations.
 
 
-## How will you solve the problem? What is your plan of action? 
-_Describe and think about your approach!
-What method, algorithm, technique? How will you scale it up?_
+- *Predictor*: Currently, the predictor is being trained _only_ on demand by (time,station). However, the controller depends on (time, origin, destination, travel_time). Alternatively, the option might be to simply predict the FlowsIn and FlowsOut independently. This would, however, not pair at all with the idea of being able to "postpone" demand. 
 
-- 
-
-## How will you evaluate your method? 
-_How will you measure performance or success of your method? What baselines will you use?_
-
-## What do you expect to submit/accomplish by the end of the quarter?
+## Strategies
 
 
-## Team Member CVs
 
-### Ramon Iglesias
-
-### Federico Rossi
-
-### Kevin Wang
-
-
-### Questions
-
-- How big is the dataset? Larger than DiDi's challenge?
-- 
-
-
-### Proposal: Causality Model
+|Controller \ Predictor   | TO | TOD | TODTT | FlowsIn/Out | 
+| ----------------------- |:--:|:---:|:-----:|:-----------:|
+|**Origin Slack**         | E  |     |       |             |
+|**TOD Postpone**         |    |     |       |             |
+|**Ignore Flows-In**      | E  |     |       |             |
