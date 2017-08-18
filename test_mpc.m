@@ -13,7 +13,7 @@ Flags.milpflag = 0;
 
 RebWeight = 5.0;
 
-Starters = zeros(length(RoadGraph),T);
+Starters = zeros(T,length(RoadGraph));
 
 % placing the vehicles randomly
 Tinit = 25;
@@ -24,7 +24,7 @@ R(:,2) = ceil(R(:,2) .^2 * Tinit);
 for t=1:Tinit
     for i=1:N
         mask = R(:,1) == i & R(:,2) == t;
-        Starters(i,t) = sum(mask);
+        Starters(t,i) = sum(mask);
     end
 end
 RoadNetwork.Starters = Starters;
@@ -38,7 +38,7 @@ for t=1:T
     for i=1:N
         for j=1:N
             if t <= Tinit
-                FlowsOut{t}(i,j) =  poissrnd(0.3);
+                FlowsOut{t}(i,j) =  poissrnd(0.1);
                 tot_pax = tot_pax + FlowsOut{t}(i,j);
             end
         end
