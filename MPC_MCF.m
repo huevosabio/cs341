@@ -10,7 +10,7 @@ function [rebalanceQueue]=MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags)
 % -- cell{nx1} RoadGraph: RoadGraph{i} contains the neighbors of node i in the road graph
 % -- matrix(nxn) TravelTimes: TravelTimes(i,j) is the quantized travel time between nodes i and j
 % -- int T: Quantized length of the planning horizon
-% -- matrix(nx1) Starters: Starters(i,t) gives the number of available vehicles at station i and time t
+% -- matrix(nx1) Starters: Starters(t,i) gives the number of available vehicles at station i and time t
 % 
 % - float RebWeight: relative cost between of idle vehicles vs traveling vehicles
 %
@@ -43,8 +43,8 @@ debugflag=1;        %Makes output verbose
 DIAGNOSTIC_FLAG=0;  % Diagnoses state allocation. Useful for initial debugging.
 
 %CongestionCost=1e3; %The cost of violating the congestion constraint
-%SourceRelaxCost=1e6;     % The cost of dropping a source or sink altogether
-WaitTimeCost   = 10000;     %The cost per unit of time letting customers wait.
+SourceRelaxCost=1e6;     % The cost of dropping a source or sink altogether
+WaitTimeCost   = 1e6;     %The cost per unit of time letting customers wait.
 
 %Clean up road graph.
 for i=1:length(RoadGraph)
@@ -94,8 +94,8 @@ end
 
 % build finders 
 
-StateSize= T*E + T*E + T*E + S;
-numFlowVariables = T*E + T*E + T*E;
+StateSize= T*E + T*E + T*E + T*E;
+numFlowVariables = T*E + T*E + T*E + T*E;
 
 
 if debugflag
@@ -106,7 +106,7 @@ end
 FindRoadLinkPtij= @(t,i,j) (t-1)*E +cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 FindRoadLinkRtij=     @(t,i,j)  T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 FindWaitingPaxtij = @(t,i,j) T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j); % sinks are grouped by destination!
-
+FindRealPaxtij = @(t,i,j) T*E + T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 
 %% COST
 if debugflag
@@ -125,7 +125,8 @@ for i=1:N
                 f_cost(FindRoadLinkRtij(t,i,j))= TravelTimes(i,j);
             end
             % waiting costs
-            f_cost(FindWaitingPaxtij(t,i,j))= WaitTimeCost;
+            f_cost(FindWaitingPaxtij(t,i,j))= SourceRelaxCost;
+            f_cost(FindRealPaxtij(t,i,j))= WaitTimeCost*t;
         end
     end
 end
@@ -135,8 +136,8 @@ if (debugflag)
     disp('Initializing constraints')
 end
 
-n_eq_constr = T*N*N + T*N;
-n_eq_entries = T*N*N*3 + T*N*N*4 + N;
+n_eq_constr = T*N*N + T*N + N*N;
+n_eq_entries = T*N*N*3 + T*N*N*4 + N*N*T;
 
 Aeqsparse=zeros(n_eq_entries,3);
 Beq=zeros(n_eq_constr,1);
@@ -186,13 +187,20 @@ for t=1:T
                 Aeqsparse(Aeqentry,:)=[Aeqrow,FindWaitingPaxtij(t,i,j), 1];
                 Aeqentry=Aeqentry+1;
                 % customers that waited the last timestep
-                if t > 1
-                    Aeqsparse(Aeqentry,:)=[Aeqrow,FindWaitingPaxtij(t-1,i,j), -1];
-                    Aeqentry=Aeqentry+1;
-                end
+                %if t > 1
+                %    Aeqsparse(Aeqentry,:)=[Aeqrow,FindWaitingPaxtij(t-1,i,j), -1];
+                %    Aeqentry=Aeqentry+1;
+                %end
+                % initial customers that get to wait
+                Aeqsparse(Aeqentry,:)=[Aeqrow,FindRealPaxtij(t,i,j), -1];
+                Aeqentry=Aeqentry+1;
                 % all of this must equal the predicted demand for (t,i,j)
                 % and we want this to equal the total amount of demand at that time and node
-                Beq(Aeqrow)= FlowsOut{t}(i,j);
+                if t > 1
+                    Beq(Aeqrow)= FlowsOut{t}(i,j);
+                else
+                    Beq(Aeqrow) = 0;
+                end
                 Aeqrow=Aeqrow+1;
             end
         end
@@ -223,10 +231,21 @@ for t=1:T
             end
         end
         if t == T
-            Beq(Aeqrow)= Starters(i,t);% - Breakers(i);
+            Beq(Aeqrow)= Starters(t,i);% - Breakers(i);
         else
-            Beq(Aeqrow)= Starters(i,t);
+            Beq(Aeqrow)= Starters(t,i);
         end
+        Aeqrow=Aeqrow+1;
+    end
+end
+
+for i=1:N
+    for j=1:N
+        for t=1:T
+            Aeqsparse(Aeqentry,:)=[Aeqrow,FindRealPaxtij(t,i,j), 1];
+            Aeqentry=Aeqentry+1;
+        end
+        Beq(Aeqrow)= FlowsOut{1}(i,j);
         Aeqrow=Aeqrow+1;
     end
 end
@@ -293,17 +312,28 @@ if (debugflag)
 end
 
 delivered = 0;
+dropped = 0;
 waiting = 0;
+total_wait = 0;
 for t=1:T
     for i=1:N
         for j=1:N
             delivered = delivered + cplex_out(FindRoadLinkPtij(t,i,j));
-            waiting = waiting + cplex_out(FindWaitingPaxtij(t,i,j));
+            dropped = dropped + cplex_out(FindWaitingPaxtij(t,i,j));
+            if t > 1
+                w = cplex_out(FindRealPaxtij(t,i,j));
+                waiting = waiting + w;
+                if w > 0
+                    total_wait = total_wait + w*(t-1)
+                end
+            end
         end
     end
 end
 fprintf('Total delivered: %f\n', delivered)
-fprintf('Total waited: %f\n', waiting)
+fprintf('Total dropped: %f\n', dropped)
+fprintf('Total waiting: %f\n', waiting)
+fprintf('Average waiting: %f\n', total_wait / waiting)
 
 rebalanceQueue = cell(S,1);
 for i = 1:S
