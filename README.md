@@ -10,10 +10,10 @@
 
 |Controller \ Predictor   | TO | TOD | TODTT | FlowsIn/Out | 
 | ----------------------- |:--:|:---:|:-----:|:-----------:|
-|**Origin Slack**         | E  |     |       |             |
+|**Origin Slack**         | F  |     |       |             |
 |**TOD Postpone**         | -  |     |       |             |
-|**Ignore Flows-In**      | E  |     |       |             |
-
+|**Ignore Flows-In**      | F  |     |       |             |
+|**TOD Drop + Wait**      | S  |     |       |             |
 
 
 ## Notes
