@@ -324,7 +324,7 @@ for t=1:T
                 w = cplex_out(FindRealPaxtij(t,i,j));
                 waiting = waiting + w;
                 if w > 0
-                    total_wait = total_wait + w*(t-1)
+                    total_wait = total_wait + w*(t-1);
                 end
             end
         end
