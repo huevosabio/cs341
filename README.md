@@ -30,9 +30,9 @@ The results for the approach with waiting only for the immediate customers appea
 
 ### TOD Predictions, Predicted Demand can be dropped, Waiting Customers must be satisfied
 
-| Metric \ Predictor    | Perfect | TommyLSTM | Reactive | 
-| --------------------  |:------: |:---------:|:--------:|
-|**Mean wait time**     |   4.37  |  125.05   |  191.0   |
-|**Median wait time**   |   0.00  |    0.00   |   18.0   |
-|**Mean service time**  | 541.1   |  541.4    |     -    |
-|**Median service time**| 444.0   |  444.0    |     -    |
+| Metric \ Predictor    | Perfect | TommyLSTM | Reactive | NoPred |
+| --------------------  |:------: |:---------:|:--------:|:------:|
+|**Mean wait time**     |   4.37  |  125.05   |  191.0   | 6366.0 |
+|**Median wait time**   |   0.00  |    0.00   |   18.0   | 4956.0 |
+|**Mean service time**  | 541.1   |  541.4    |     -    |  545.8 |
+|**Median service time**| 444.0   |  444.0    |     -    |  444.0 |

@@ -44,7 +44,7 @@ DIAGNOSTIC_FLAG=0;  % Diagnoses state allocation. Useful for initial debugging.
 
 %CongestionCost=1e3; %The cost of violating the congestion constraint
 SourceRelaxCost=1e6;     % The cost of dropping a source or sink altogether
-WaitTimeCost   = 1e6;     %The cost per unit of time letting customers wait.
+WaitTimeCost   = SourceRelaxCost / T;     %The cost per unit of time letting customers wait.
 
 %Clean up road graph.
 for i=1:length(RoadGraph)
@@ -107,6 +107,7 @@ FindRoadLinkPtij= @(t,i,j) (t-1)*E +cumRoadNeighbors(i) + RoadNeighborCounter(i,
 FindRoadLinkRtij=     @(t,i,j)  T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 FindWaitingPaxtij = @(t,i,j) T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j); % sinks are grouped by destination!
 FindRealPaxtij = @(t,i,j) T*E + T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
+
 
 %% COST
 if debugflag

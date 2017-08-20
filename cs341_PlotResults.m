@@ -1,13 +1,14 @@
 clear all; close all; clc;
 
-fileslist={'MPC_Perf_5000v_rev3','MPC-LSTM-TOD5000v_rev3','ReactiveSim_5000v_rev2-1'}%,'ReactiveSim_7500v_rev2','ReactiveSim_9800v_rev2','mpcperfect'};
+fileslist={'MPC_Perf_5000v_rev3','MPC-LSTM-TOD5000v_rev3','MPC-empty-TOD5000v_rev3'}%,'ReactiveSim_7500v_rev2','ReactiveSim_9800v_rev2','mpcperfect'};
 
 for fid = 1:length(fileslist)
     load(fileslist{fid})
     tplot = linspace(0,24,t+1);
     figure()
     hold all
-    area(tplot,[numVehiclesRebalancing,numVehiclesBusy-numVehiclesRebalancing])
+    plot(tplot,numVehiclesRebalancing,'g')
+    plot(tplot,numVehiclesBusy-numVehiclesRebalancing,'b')
     plot(tplot,sum(custWaiting'),'r','LineWidth',3)
     axis([0,24,0,4500])
     legend('Rebalancing','Carrying passengers','Waiting customers','FontSize',16)
