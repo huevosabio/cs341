@@ -54,14 +54,14 @@ PLOTFLAG = 0;
 PLOTREBFLAG = 1;
 NAIVEFLAG = 1;
 rebCount = 1;
-MPCFLAG = 0;
+MPCFLAG = 1;
 
-SIMNAME = 'REACTIVE';
+SIMNAME = 'MPC-LSTM';
 
 if MPCFLAG
     % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
     load('didi.mat')
-    load('ignored_assets/tod_predictions_perfect.mat')
+    load('ignored_assets/tod_predictions_tommylstm.mat')
 end
 
 if PLOTFLAG
