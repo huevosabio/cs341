@@ -54,9 +54,9 @@ PLOTFLAG = 0;
 PLOTREBFLAG = 1;
 NAIVEFLAG = 1;
 rebCount = 1;
-MPCFLAG = 1;
+MPCFLAG = 0;
 
-SIMNAME = 'MPC-LSTM';
+SIMNAME = 'REACTIVE';
 
 if MPCFLAG
     % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
@@ -235,6 +235,9 @@ for t = 1:Tmax-1
                         car(i).time_left = customer(car(i).passId).traveltime * 60;
 
                         customer(car(i).passId).pickedup = 1;
+                        % remove customer from the origin station
+                        tmpindex = find(station(customer(car(i).passId).ostation).custId == car(i).passId);
+                        station(customer(car(i).passId).ostation).custId = [station(customer(car(i).passId).ostation).custId(1:tmpindex-1), station(customer(car(i).passId).ostation).custId(tmpindex+1:end)];
                     else
                         car(i).state = DRIVING_TO_DEST;
                         car(i).pos = car(i).dpos;
@@ -243,6 +246,10 @@ for t = 1:Tmax-1
                         end
                         car(i).dpos = customer(car(i).passId).dpos;
                         customer(car(i).passId).pickedup = 1;
+                        % remove customer from the origin station
+                        tmpindex = find(station(customer(car(i).passId).ostation).custId == car(i).passId);
+                        station(customer(car(i).passId).ostation).custId = [station(customer(car(i).passId).ostation).custId(1:tmpindex-1), station(customer(car(i).passId).ostation).custId(tmpindex+1:end)];
+                        %
                         car(i).path = findRoute(car(i).path(1), customer(car(i).passId).dnode, LinkTime);
                         car(i).speedfactor =  LinkTime(customer(car(i).passId).onode,customer(car(i).passId).dnode) / (customer(car(i).passId).traveltime * 60);
                         
@@ -259,9 +266,6 @@ for t = 1:Tmax-1
                     car(i).dpos = StationLocation(customer(car(i).passId).dstation, :);
                     % route car to station
                     car(i).path = findRoute(car(i).path(1), station(customer(car(i).passId).dstation).node_id, LinkTime);
-                    tmpindex = find(station(customer(car(i).passId).ostation).custId == car(i).passId);
-                    % remove customer from the origin station
-                    station(customer(car(i).passId).ostation).custId = [station(customer(car(i).passId).ostation).custId(1:tmpindex-1), station(customer(car(i).passId).ostation).custId(tmpindex+1:end)];
                     % car is now free to receive assignments from station
                     
                     customer(car(i).passId).delivered = 1;
@@ -322,9 +326,6 @@ for t = 1:Tmax-1
             car(i).dpos = StationLocation(customer(car(i).passId).dstation, :);
             % route car to station
             car(i).path = findRoute(car(i).path(1), station(customer(car(i).passId).dstation).node_id, LinkTime);
-            tmpindex = find(station(customer(car(i).passId).ostation).custId == car(i).passId);
-            % remove customer from the origin station
-            station(customer(car(i).passId).ostation).custId = [station(customer(car(i).passId).ostation).custId(1:tmpindex-1), station(customer(car(i).passId).ostation).custId(tmpindex+1:end)];
             % car is now free to receive assignments from station
             
             customer(car(i).passId).delivered = 1;
@@ -427,6 +428,9 @@ for t = 1:Tmax-1
                     car(assignedCarID).speedfactor =  LinkTime(customer(custInd).onode,customer(custInd).dnode) / (customer(custInd).traveltime * 60);
                 end
                 customer(custInd).pickedup = 1;
+                % remove customer from the origin station
+                tmpindex = find(station(customer(custInd).ostation).custId == car(assignedCarID).passId);
+                station(customer(car(assignedCarID).passId).ostation).custId = [station(customer(car(assignedCarID).passId).ostation).custId(1:tmpindex-1), station(customer(car(assignedCarID).passId).ostation).custId(tmpindex+1:end)];
             else
                 % TODO: APPLIES TO SELFLOOP
                 % vehicle is in motion.
