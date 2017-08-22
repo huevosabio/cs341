@@ -32,7 +32,7 @@ The results for the approach with waiting only for the immediate customers appea
 
 | Metric \ Predictor    | Perfect | TommyLSTM | Reactive | NoPred |
 | --------------------  |:------: |:---------:|:--------:|:------:|
-|**Mean wait time**     |   4.37  |  125.05   |  191.0   | 6366.0 |
-|**Median wait time**   |   0.00  |    0.00   |   18.0   | 4956.0 |
-|**Mean service time**  | 541.1   |  541.4    |     -    |  545.8 |
-|**Median service time**| 444.0   |  444.0    |     -    |  444.0 |
+|**Mean wait time**     |   4.37  |  26.7     |  191.8   | 381.5  |
+|**Median wait time**   |   0.0   |    0.0    |   18.0   | 276.0  |
+|**Mean service time**  | 541.1   |  541.1    |  541.3   | 545.2  |
+|**Median service time**| 444.0   |  444.0    |  444.0   | 444.0  |

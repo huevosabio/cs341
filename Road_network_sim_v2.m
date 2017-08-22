@@ -142,15 +142,18 @@ numVehiclesNotRebalancing = zeros(Tmax, 1);
 %numCarsOnLink = cell(Tmax);
 carsIdlePrint=zeros(Tmax,numStations);
 carsOnRoadPrint=zeros(Tmax,numStations);
+custUnassigned=zeros(Tmax,numStations);
 custWaiting=zeros(Tmax,numStations);
+%
+numRebTasks = zeros(Tmax,numStations);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% load demand data TODO
+% load demand data 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 fprintf('Loading demand data...')
 filename = 'ignored_assets/MATLAB_orders.csv';
 MData = csvread(filename,1,1);
-arrivalTimeOffset = (0*3600 + -5*MPCFLAG*60 + 0)/60*timeStep;
+arrivalTimeOffset = (0*3600 + -5*1*60 + 0)/60*timeStep;
 arrivalTimes = (MData(:,3)*3600 + MData(:,4)*60 + MData(:,5))/60*timeStep - arrivalTimeOffset;
 fprintf('loaded!\n')
 
@@ -181,7 +184,6 @@ end
 % Begin Simulation: main loop
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for t = 1:Tmax-1
-    t
     % update LinkTime variable
     % go through all the links (i,j)
     
@@ -198,10 +200,12 @@ for t = 1:Tmax-1
     for i=1:numStations
         carsIdlePrint(t,i)=length(station(i).carIdle);
         carsOnRoadPrint(t,i)=length(station(i).carOnRoad);
-        custWaiting(t,i)=length(station(i).custUnassigned);
+        custUnassigned(t,i)=length(station(i).custUnassigned);
+        custWaiting(t,i)=length(station(i).custUnassigned) + length(station(i).custId);
     end
     carsIdlePrint(t,:)+carsOnRoadPrint(t,:);
-    
+
+    fprintf('Time: %d, Unassigned Customers: %d, Waiting Customers: %d, Total Customers: %d \n', t, sum(custUnassigned(t,:)), sum(custWaiting(t,:)), cc-1)
     % vehicle state transitions
     
     for i = 1:v
@@ -229,6 +233,8 @@ for t = 1:Tmax-1
                         car(i).dstation = customer(car(i).passId).dstation;
                         car(i).ostation = customer(car(i).passId).ostation;
                         car(i).time_left = customer(car(i).passId).traveltime * 60;
+
+                        customer(car(i).passId).pickedup = 1;
                     else
                         car(i).state = DRIVING_TO_DEST;
                         car(i).pos = car(i).dpos;
@@ -345,7 +351,7 @@ for t = 1:Tmax-1
     if ccTmp <= max(size(arrivalTimes))
         while arrivalTimes(ccTmp) < t
             %customer arrival and destination locations
-            tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60; %TODO verify
+            tmpCust = [MData(ccTmp,6:7); MData(ccTmp,8:9)]*60;
             % find the nearest nodes
             tmpNodes = dsearchn(NodesLocation, tmpCust);
             %if tmpNodes(1) ~= tmpNodes(2)
@@ -398,76 +404,67 @@ for t = 1:Tmax-1
             if shortestDistance == inf
                 %'ERROR: inf shortest distance (could not find a vehicle for the customer)'
             end
-            % assign route to the vehicle
-            %assignedCarID
-            %car(assignedCarID).passId = custInd;
-            if customer(custInd).onode==customer(custInd).dnode
-                % Do not assign a path. Just wait a set time taken from the
-                %  customer's actual travel time
-                
-                car(assignedCarID).state = SELF_LOOP;
-                car(assignedCarID).dpos = customer(custInd).dpos;
-                car(assignedCarID).dstation = customer(custInd).dstation;
-                car(assignedCarID).ostation = i;
-                car(assignedCarID).passId = custInd;
-                car(assignedCarID).time_left = customer(custInd).traveltime * 60;
-                
-                customer(custInd).pickedup = 1;
-            else
-                tmpPath = car(assignedCarID).path;
-                car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).onode, LinkTime); % TODO, make LinkTime
-                alreadyAtPickup = 0;
-                
-                % TODO blurb: if the customer's start and destination are the
-                % same, assign state SELF_LOOP
-                
-                if length(tmpPath) == 1 && length(car(assignedCarID).path) == 1
-                    % vehicle is not initially in motion (at a station)
-                    % go straight to routing delivery
-                    alreadyAtPickup = 1;
+            % assign pax to car
+            car(assignedCarID).passId = custInd;
+            
+            tmpPath = car(assignedCarID).path;
+            car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).onode, LinkTime); 
+            alreadyAtPickup = 0;
+            if length(tmpPath) == 1 && length(car(assignedCarID).path) == 1
+                % TODO: APPLIES TO SELFLOOP
+                % vehicle is not initially in motion (at a station)
+                % go straight to routing delivery
+                alreadyAtPickup = 1;
+                if customer(custInd).onode==customer(custInd).dnode
+                    car(assignedCarID).state = SELF_LOOP;
+                    car(assignedCarID).dpos = customer(custInd).dpos;
+                    car(assignedCarID).time_left = customer(custInd).traveltime * 60;
+                else
                     car(assignedCarID).state = DRIVING_TO_DEST;
                     car(assignedCarID).dpos = customer(custInd).dpos;
-                    customer(custInd).pickedup = 1;
-                    
                     % route the new path using the customer speed
                     car(assignedCarID).path = findRoute(tmpPath(1), customer(custInd).dnode, LinkTime);
                     car(assignedCarID).speedfactor =  LinkTime(customer(custInd).onode,customer(custInd).dnode) / (customer(custInd).traveltime * 60);
-                else
-                    % vehicle is in motion.
-                    if length(car(assignedCarID).path) == 1
-                        car(assignedCarID).path = [tmpPath(2) tmpPath(1)];
-                    elseif length(tmpPath) > 1
-                        if car(assignedCarID).path(2) ~= tmpPath(2)
-                            % go a different way - make U-turn
-                            car(assignedCarID).path = [tmpPath(2) car(assignedCarID).path];
-                        end
+                end
+                customer(custInd).pickedup = 1;
+            else
+                % TODO: APPLIES TO SELFLOOP
+                % vehicle is in motion.
+                if length(car(assignedCarID).path) == 1
+                    car(assignedCarID).path = [tmpPath(2) tmpPath(1)];
+                elseif length(tmpPath) > 1
+                    if car(assignedCarID).path(2) ~= tmpPath(2)
+                        % go a different way - make U-turn
+                        car(assignedCarID).path = [tmpPath(2) car(assignedCarID).path];
                     end
                 end
-                if length(car(assignedCarID).path) > 1
-                    LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2)) = LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2))+1;
-                end
-                
-                % remove assigned car from station
-                if ~isempty(station(i).carIdle) && assignedCarID == station(i).carIdle(1)
-                    station(i).carIdle = station(i).carIdle(2:end);
-                else
-                    station(i).carOnRoad = [station(i).carOnRoad(1:carOnRoadIndex-1), station(i).carOnRoad(carOnRoadIndex+1:end)];
-                end
-                % assign the car to the customer
-                car(assignedCarID).dstation = customer(custInd).dstation;
-                car(assignedCarID).ostation = i;
-                if ~alreadyAtPickup
-                    car(assignedCarID).state = DRIVING_TO_PICKUP;
-                    car(assignedCarID).dpos = customer(custInd).opos;
-                end
-                car(assignedCarID).passId = custInd;
-                
-                % direction vector
-                if length(car(assignedCarID).path) > 1
-                    tmpNode2 = car(assignedCarID).path(2);
-                    tmpNode1 = car(assignedCarID).path(1);
-                    car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
-                end
+            end
+            % TODO: APPLIES TO SELFLOOP
+            if length(car(assignedCarID).path) > 1
+                LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2)) = LinkNumVehicles(car(assignedCarID).path(1), car(assignedCarID).path(2))+1;
+            end
+            if length(tmpPath) > 1
+                LinkNumVehicles(tmpPath(1), tmpPath(2)) = LinkNumVehicles(tmpPath(1), tmpPath(2))-1;
+            end
+            % TODO: APPLIES TO SELFLOOP
+            % assign the car to the customer
+            car(assignedCarID).dstation = customer(custInd).dstation;
+            car(assignedCarID).ostation = i;
+            if ~alreadyAtPickup
+                car(assignedCarID).state = DRIVING_TO_PICKUP;
+                car(assignedCarID).dpos = customer(custInd).opos;
+            end
+            % direction vector
+            if length(car(assignedCarID).path) > 1
+                tmpNode2 = car(assignedCarID).path(2);
+                tmpNode1 = car(assignedCarID).path(1);
+                car(assignedCarID).direction = (NodesLocation(tmpNode2,:) - NodesLocation(tmpNode1,:)); car(assignedCarID).direction=car(assignedCarID).direction/norm(car(assignedCarID).direction);
+            end
+            % remove assigned car from station
+            if ~isempty(station(i).carIdle) && assignedCarID == station(i).carIdle(1)
+                station(i).carIdle = station(i).carIdle(2:end);
+            else
+                station(i).carOnRoad = [station(i).carOnRoad(1:carOnRoadIndex-1), station(i).carOnRoad(carOnRoadIndex+1:end)];
             end
             % remove unassigned customer from station
             station(i).custUnassigned = station(i).custUnassigned(2:end);
@@ -497,9 +494,10 @@ for t = 1:Tmax-1
         end
         for i = 1:v
             % if the car is in the process of pickup or dropoff
-            if car(i).state == DRIVING_TO_DEST % || car(i).state == 1
+            if car(i).state == DRIVING_TO_DEST  || car(i).state == DRIVING_TO_PICKUP || car(i).state == SELF_LOOP
                 vown(car(i).dstation) = vown(car(i).dstation) + 1;
             end
+                
         end
         
         % find excess vehicles of each station
@@ -532,6 +530,7 @@ for t = 1:Tmax-1
                     for j = 1:numStations
                         for k = 1:numij2(i,j)
                             rebalanceQueue{i} = [rebalanceQueue{i} j];
+                            numRebTasks(t,i) = numRebTasks(t,i) + 1;
                         end
                     end
                 end
@@ -553,7 +552,7 @@ for t = 1:Tmax-1
                         if tin < horizon && tin > 0
                             RoadNetwork.Starters(tin,car(i).dstation) = RoadNetwork.Starters(tin,car(i).dstation) + 1;
                         elseif tin < horizon
-                            RoadNetwork.Starters(1,car(i).ostation) = RoadNetwork.Starters(1,car(i).dstation) + 1;
+                            RoadNetwork.Starters(1,car(i).dstation) = RoadNetwork.Starters(1,car(i).dstation) + 1;
                         end
                     elseif car(i).state == SELF_LOOP
                         eta = car(i).time_left;
@@ -561,10 +560,25 @@ for t = 1:Tmax-1
                         if tin < horizon && tin > 0
                             RoadNetwork.Starters(tin,car(i).dstation) = RoadNetwork.Starters(tin,car(i).dstation) + 1;
                         elseif tin < horizon
-                            RoadNetwork.Starters(1,car(i).ostation) = RoadNetwork.Starters(1,car(i).dstation) + 1;
+                            RoadNetwork.Starters(1,car(i).dstation) = RoadNetwork.Starters(1,car(i).dstation) + 1;
                         end
                     elseif car(i).state == IDLE
                         RoadNetwork.Starters(1,car(i).ostation) = RoadNetwork.Starters(1,car(i).ostation) + 1;
+                    elseif car(i).state == DRIVING_TO_PICKUP
+                        distToDest = norm(car(i).dpos - car(i).pos,2);
+                        eta1 = distToDest / car(i).speedfactor;
+                        cus = customer(car(i).passId);
+                        if cus.ostation == cus.dstation
+                            eta2 = 1;
+                        else
+                            eta2 = LinkTime(cus.ostation, cus.dstation);
+                        end
+                        tin = ceil(eta / (predictionStep * dt));
+                        if tin < horizon && tin > 0
+                            RoadNetwork.Starters(tin,car(i).dstation) = RoadNetwork.Starters(tin,car(i).dstation) + 1;
+                        elseif tin < horizon
+                            RoadNetwork.Starters(1,car(i).dstation) = RoadNetwork.Starters(1,car(i).dstation) + 1;
+                        end
                     end
                 end
                 % load waiting customers into FlowsOut
@@ -578,6 +592,9 @@ for t = 1:Tmax-1
 
                 % run!
                 [rebalanceQueue] = MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags);
+                for i=1:length(rebalanceQueue)
+                    numRebTasks(t,i) = numRebTasks(t,i) + length(rebalanceQueue{i});
+                end
             end
         else
             % calculate difference between the floor value and the actual
@@ -708,7 +725,6 @@ for t = 1:Tmax-1
         nextRebPaths = cell(0);
         c_reb = 1;
         for i = 1:length(rebPaths)
-            %disp('TODO: now some of the paths may be empty! Prune them, maybe?')
             if isempty(rebPaths{i})
                 continue
             end
