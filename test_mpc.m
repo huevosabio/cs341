@@ -37,8 +37,8 @@ for t=1:T
     FlowsOut{t} = sparse(N,N);
     for i=1:N
         for j=1:N
-            if t == 1
-                FlowsOut{t}(i,j) =  poissrnd(0.5);
+            if t <= Tinit
+                FlowsOut{t}(i,j) =  poissrnd(0.2);
                 tot_pax = tot_pax + FlowsOut{t}(i,j);
             end
         end
