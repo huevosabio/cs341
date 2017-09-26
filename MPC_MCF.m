@@ -295,13 +295,57 @@ ub=Inf*ones(StateSize,1); %no constraints
 if (debugflag)
     disp('Calling optimizer')
 end
-tic
-options = cplexoptimset('Display', 'on');% 'Algorithm', 'interior-point');
-%options = cplexoptimset('Display', 'on', 'Algorithm', 'interior-point');
-%options.barrier.crossover  = -1;
-%options.barrier.limits.objrange = 1e50;
-[cplex_out,fval,exitflag,output]=cplexlp(f_cost,[],[],Aeq,Beq,lb,ub,[],options) ;
-toc
+%tic
+%options = cplexoptimset('Display', 'on');% 'Algorithm', 'interior-point');
+%%options = cplexoptimset('Display', 'on', 'Algorithm', 'interior-point');
+%%options.barrier.crossover  = -1;
+%%options.barrier.limits.objrange = 1e50;
+%[cplex_out,fval,exitflag,output]=cplexlp(f_cost,[],[],Aeq,Beq,lb,ub,[],options) ;
+%toc
+
+
+%% Variable type
+
+if (debugflag)
+    disp('Building constraint type')
+end
+
+% Building block
+ConstrType=char(zeros(1,StateSize));
+
+% Continuous-probability version
+if (~milpflag)
+    ConstrType(1:end)='C';
+else
+    % Actual MILP formulation
+    ConstrType(1:end)='I';
+end
+
+
+if (milpflag)
+    fprintf('Solving as MILP.')
+    MyOptions=cplexoptimset('cplex');;
+    %MyOptions.parallel=1;
+    %MyOptions.threads=8;
+    %MyOptions.mip.tolerances.mipgap=0.01;
+    %MyOptions.Display = 'iter';
+    if (debugflag)
+        tic
+    end
+    [cplex_out,fval,exitflag,output]=cplexmilp(f_cost,[],[],Aeq,Beq,[],[],[],lb,ub,ConstrType,[],MyOptions);
+    
+    if (debugflag)
+        toc
+    end
+else
+    if (debugflag)
+        tic
+    end
+    [cplex_out,fval,exitflag,output]=cplexlp(f_cost,[],[],Aeq,Beq,lb,ub) ;
+    if (debugflag)
+        toc
+    end
+end
 
 
 if (debugflag)

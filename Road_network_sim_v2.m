@@ -56,25 +56,13 @@ NAIVEFLAG = 1;
 rebCount = 1;
 MPCFLAG = 1;
 
-SIMNAME = 'MPC-LSTM';
+SIMNAME = 'MPC-EMPTY';
 
 if MPCFLAG
     % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
     load('didi.mat')
-    load('ignored_assets/tod_predictions_tommylstm.mat')
+    load('ignored_assets/tod_predictions_empty.mat')
 end
-
-if PLOTFLAG
-    movieCounter = 1;
-    writerObj = VideoWriter('mymovie.avi');
-    writerObj.FrameRate = 30;
-    open(writerObj);
-    cars_fig = figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
-    roads_fig= figure('Position',[10 10 1920 1080],'MenuBar','none','ToolBar','none','resize','off')
-    cmap=colormap('jet');
-    crange=size(cmap,1);
-end
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % variable definitions
@@ -98,7 +86,7 @@ if MPCFLAG
     RoadNetwork.RoadGraph = RoadGraph;
     RoadNetwork.TravelTimes = TravelTimes;
 
-    Flags.milpflag = 0;
+    Flags.milpflag = 1;
     Flags.congrelaxflag = 0;
     Flags.sourcerelaxflag = 1;
     Flags.cachedAeqflag = 0;
@@ -843,80 +831,6 @@ for t = 1:Tmax-1
             numVehiclesIdle(t) = numVehiclesIdle(t)+1;
         end
     end
-    
-    % collect number of vehicles on each link
-    %numCarsOnLink{t} = LinkNumVehicles;
-      
-    % plot things
-    if PLOTFLAG
-        figure(cars_fig)
-        plot(1000,1000)
-        axis equal
-        set(gca,'nextplot','replacechildren');
-        hold on;
-        axis equal;
-        plot(NodesLocation(1:N,1), NodesLocation(1:N,2), '.b')
-        for i = 1:N
-        %     text(NodesLocation(i,1), NodesLocation(i,2), int2str(i));
-            for j = RoadGraph{i}
-                if j <= N
-                    plot([NodesLocation(i,1) NodesLocation(j,1)], [NodesLocation(i,2) NodesLocation(j,2)]);
-                end
-            end
-        end
-        % plot each car
-        pv = 0;
-        rv = 0;
-        rrv = 0;
-        for i = 1:v
-            if car(i).state ~= IDLE
-                
-                %This code plots a car with color based on its speed
-                %carFFSpeed = LinkFreeFlow(cars(v).path(1),cars(v).path(2));
-                %carSpeed = LinkSpeed(cars(v).path(1),cars(v).path(2));
-                %carColorIdx = round(carSpeed/carFFSpeed *(crange-1)+1);
-                %plot(car(i).pos(1),car(i).pos(2),'.','Color',cmap(carColorIdx,:));
-                
-                car_offset=[0 -1; 1 0]*car(i).direction'*0.01;
-                if car(i).state == DRIVING_TO_DEST
-                    pv = pv+1;
-                    plot(car(i).pos(1)+car_offset(1), car(i).pos(2)+car_offset(2), 'rd', 'MarkerFaceColor', 'r', 'MarkerSize', 4)
-                elseif car(i).state ~= DRIVING_TO_DEST && car(i).state ~= REBALANCING
-                    rv = rv+1;
-                    plot(car(i).pos(1)+car_offset(1), car(i).pos(2)+car_offset(2), 'rd', 'MarkerFaceColor', 'r', 'MarkerSize', 4)
-                elseif car(i).state == REBALANCING
-                    plot(car(i).pos(1)+car_offset(1), car(i).pos(2)+car_offset(2), 'cd', 'MarkerFaceColor', 'c', 'MarkerSize', 4)
-                    rrv = rrv + 1; 
-                end  
-            end
-        end
-        rrv
-        %hold all
-        %I strongly suggest saving as png and compositing the video later
-        Movie(movieCounter) = getframe;
-        writeVideo(writerObj,Movie(movieCounter));
-        hold off
-        movieCounter = movieCounter + 1;
-    end
-    %keyboard;
-%     if PLOTFLAG
-%         maxroadcap=full(max(max(RoadCap)));
-%         figure(roads_fig)
-%         hold all
-%         for i=1:N
-%             for j=RoadGraph{i}
-%                 road_dir = [NodesLocation(j,1); NodesLocation(j,2)]-[NodesLocation(i,1); NodesLocation(i,2)];
-%                 road_dir=road_dir./norm(road_dir);
-%                 road_offset = [0 -1;1 0]*road_dir*0.01;
-%                 road_thickness=full(RoadCap(i,j)/maxroadcap*8);
-%                 if road_thickness
-%                     plot([NodesLocation(i,1)+road_offset(1) NodesLocation(j,1)+road_offset(1)], [NodesLocation(i,2)+road_offset(2) NodesLocation(j,2)+road_offset(2)],'LineWidth',road_thickness)
-%                 end
-%             end
-%         end
-%         
-%     end
-    
 end
 
 if PLOTFLAG
@@ -945,9 +859,6 @@ for i = 1:cc-1
         ccc = ccc+1;
     end
 end
-figure()
-hist(allWaitTimes, 20)
-fprintf('Mean wait time:   %f\nMedian wait time: %f\n',mean(allWaitTimes),median(allWaitTimes))
 
 allServiceTimes = zeros(numDelivered, 1);
 ccc = 1;
@@ -957,10 +868,6 @@ for i = 1:cc-1
         ccc = ccc+1;
     end
 end
-figure()
-hist(allServiceTimes, 20)
-fprintf('Mean service time:   %f\nMedian service time: %f\n',mean(allServiceTimes),median(allServiceTimes))
-
 
 
 savename = [SIMNAME,num2str(v),'v_rev3'];
