@@ -1,4 +1,4 @@
-function [rebalanceQueue]=MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags)
+function [rebalanceQueue, cplex_out]=MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags)
 
 % Taken from AMoD-power:TIBalancedPowerFlow and edited as needed.
 
@@ -105,7 +105,7 @@ end
 
 FindRoadLinkPtij= @(t,i,j) (t-1)*E +cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 FindRoadLinkRtij=     @(t,i,j)  T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
-FindWaitingPaxtij = @(t,i,j) T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j); % sinks are grouped by destination!
+FindDropPaxtij = @(t,i,j) T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j); % sinks are grouped by destination!
 FindRealPaxtij = @(t,i,j) T*E + T*E + T*E + (t-1)*E + cumRoadNeighbors(i) + RoadNeighborCounter(i,j);
 
 
@@ -126,7 +126,7 @@ for i=1:N
                 f_cost(FindRoadLinkRtij(t,i,j))= TravelTimes(i,j);
             end
             % waiting costs
-            f_cost(FindWaitingPaxtij(t,i,j))= SourceRelaxCost;
+            f_cost(FindDropPaxtij(t,i,j))= SourceRelaxCost;
             f_cost(FindRealPaxtij(t,i,j))= WaitTimeCost*t;
         end
     end
@@ -185,11 +185,11 @@ for t=1:T
                     Aeqentry=Aeqentry+1;
                 %end
                 % waiting, we get to postpone the departure
-                Aeqsparse(Aeqentry,:)=[Aeqrow,FindWaitingPaxtij(t,i,j), 1];
+                Aeqsparse(Aeqentry,:)=[Aeqrow,FindDropPaxtij(t,i,j), 1];
                 Aeqentry=Aeqentry+1;
                 % customers that waited the last timestep
                 %if t > 1
-                %    Aeqsparse(Aeqentry,:)=[Aeqrow,FindWaitingPaxtij(t-1,i,j), -1];
+                %    Aeqsparse(Aeqentry,:)=[Aeqrow,FindDropPaxtij(t-1,i,j), -1];
                 %    Aeqentry=Aeqentry+1;
                 %end
                 % initial customers that get to wait
@@ -364,7 +364,7 @@ for t=1:T
     for i=1:N
         for j=1:N
             delivered = delivered + cplex_out(FindRoadLinkPtij(t,i,j));
-            dropped = dropped + cplex_out(FindWaitingPaxtij(t,i,j));
+            dropped = dropped + cplex_out(FindDropPaxtij(t,i,j));
             if t > 1
                 w = cplex_out(FindRealPaxtij(t,i,j));
                 waiting = waiting + w;
@@ -390,3 +390,5 @@ for i = 1:S
         end
     end
 end
+
+spy(Aeq)
