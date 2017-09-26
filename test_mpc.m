@@ -38,8 +38,13 @@ for t=1:T
     for i=1:N
         for j=1:N
             if t <= Tinit
-                FlowsOut{t}(i,j) =  poissrnd(0.2);
-                tot_pax = tot_pax + FlowsOut{t}(i,j);
+                if i~=j
+                    FlowsOut{t}(i,j) =  poissrnd(0.2);
+                    tot_pax = tot_pax + FlowsOut{t}(i,j);
+                else
+                    FlowsOut{t}(i,j) =  poissrnd(0.2 * 10);
+                    tot_pax = tot_pax + FlowsOut{t}(i,j);
+                end
             end
         end
     end
@@ -47,4 +52,6 @@ end
 
 Passengers.FlowsOut = FlowsOut;
 
-[rebalanceQueue]=MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags);
+[rebalanceQueue, cplex_out]=MPC_MCF(RoadNetwork,RebWeight,Passengers,Flags);
+
+unique(abs(cplex_out -round(cplex_out)))

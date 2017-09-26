@@ -56,12 +56,12 @@ NAIVEFLAG = 1;
 rebCount = 1;
 MPCFLAG = 1;
 
-SIMNAME = 'MPC-LSTM';
+SIMNAME = 'MPC-LSTM-SEAS';
 
 if MPCFLAG
     % HACKY SHIT: LOADS THE REAL TRIP COUNT BY 5MIN
     load('didi.mat')
-    load('ignored_assets/tod_predictions_tommylstm.mat')
+    load('ignored_assets/tod_predictions_seaslstm_np.mat')
 end
 
 if PLOTFLAG
