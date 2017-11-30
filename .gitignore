@@ -290,3 +290,4 @@ proposal.pdf
 # files that ought to be ignored
 ignored_assets/
 
+ignored_assets/orders.csv

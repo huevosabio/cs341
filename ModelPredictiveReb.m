@@ -156,7 +156,7 @@ for i=1:N
         end
     end
     for t=1:T-1
-        f_cost(FindSourceRelaxti(t,i)) = SourceRelaxCost;
+        f_cost(FindSourceRelaxti(t,i)) = SourceRelaxCost*( 1 / (1.2 ^ (t-1)) );
         f_cost(FindStarterTimeti(t,i)) = WaitTimeCost*t;
     end
 end

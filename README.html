@@ -1,5 +1,5 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><style>body {
-  width: 45em;
+  max-width: 980px;
   border: 1px solid #ddd;
   outline: 1300px solid #fff;
   margin: 16px auto;
@@ -7,7 +7,7 @@
 
 body .markdown-body
 {
-  padding: 30px;
+  padding: 45px;
 }
 
 @font-face {
@@ -1015,19 +1015,47 @@ body .markdown-body
   }
 }
 </style><title>README</title></head><body><article class="markdown-body"><h1 id="cs-341"><a name="user-content-cs-341" href="#cs-341" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>CS 341</h1>
-<h1 id="proposal"><a name="user-content-proposal" href="#proposal" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Proposal</h1>
-<h2 id="what-is-the-problemquestion-your-team-is-solving"><a name="user-content-what-is-the-problemquestion-your-team-is-solving" href="#what-is-the-problemquestion-your-team-is-solving" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>What is the problem/question your team is solving?</h2>
-<p><em>Give a brief but precise description or definition of the problem or question</em></p>
-<h2 id="what-data-will-you-use"><a name="user-content-what-data-will-you-use" href="#what-data-will-you-use" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>What data will you use?</h2>
-<p><em>Why is the data you plan to use appropriate? Does it have the right labels/information?<br />
-It is ok to use your own data</em></p>
-<h2 id="how-will-you-solve-the-problem-what-is-your-plan-of-action"><a name="user-content-how-will-you-solve-the-problem-what-is-your-plan-of-action" href="#how-will-you-solve-the-problem-what-is-your-plan-of-action" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>How will you solve the problem? What is your plan of action?</h2>
-<p><em>Describe and think about your approach!<br />
-What method, algorithm, technique? How will you scale it up?</em></p>
-<h2 id="how-will-you-evaluate-your-method"><a name="user-content-how-will-you-evaluate-your-method" href="#how-will-you-evaluate-your-method" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>How will you evaluate your method?</h2>
-<p><em>How will you measure performance or success of your method? What baselines will you use?</em></p>
-<h2 id="what-do-you-expect-to-submitaccomplish-by-the-end-of-the-quarter"><a name="user-content-what-do-you-expect-to-submitaccomplish-by-the-end-of-the-quarter" href="#what-do-you-expect-to-submitaccomplish-by-the-end-of-the-quarter" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>What do you expect to submit/accomplish by the end of the quarter?</h2>
-<h2 id="team-member-cvs"><a name="user-content-team-member-cvs" href="#team-member-cvs" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Team Member CVs</h2>
-<h3 id="flavia-grey"><a name="user-content-flavia-grey" href="#flavia-grey" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Flavia Grey</h3>
-<h3 id="ramon-iglesias"><a name="user-content-ramon-iglesias" href="#ramon-iglesias" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Ramon Iglesias</h3>
-<h3 id="kevin-wang"><a name="user-content-kevin-wang" href="#kevin-wang" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Kevin Wang</h3></article></body></html>
+<h1 id="todo"><a name="user-content-todo" href="#todo" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>TODO:</h1>
+<ul>
+<li>
+<p><em>Controller</em>: Currently, demand that is <em>not</em> satisfied simply gets ignored. Moreover, we ignore <code>FlowsOut</code>, but not <code>FlowsIn</code>. When we &ldquo;ignore&rdquo; a demand, we should be postponing it, such that the corresponding demand get&rsquo;s postponed. This might ruin our integrality either by forcing us to use non-integral predictions or making our LP non-TUM. Also, it would make the problem significantly larger since we will likely end up with at least <code>M+1</code> classes, where <code>M</code> is the number of stations.</p>
+</li>
+<li>
+<p><em>Predictor</em>: Currently, the predictor is being trained <em>only</em> on demand by (time,station). However, the controller depends on (time, origin, destination, travel_time). Alternatively, the option might be to simply predict the FlowsIn and FlowsOut independently. This would, however, not pair at all with the idea of being able to &ldquo;postpone&rdquo; demand. </p>
+</li>
+</ul>
+<h2 id="strategies"><a name="user-content-strategies" href="#strategies" class="headeranchor-link" aria-hidden="true"><span class="headeranchor"></span></a>Strategies</h2>
+<table>
+<thead>
+<tr>
+<th>Controller \ Predictor</th>
+<th align="center">TO</th>
+<th align="center">TOD</th>
+<th align="center">TODTT</th>
+<th align="center">FlowsIn/Out</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Origin Slack</strong></td>
+<td align="center">E</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td><strong>TOD Postpone</strong></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+<tr>
+<td><strong>Ignore Flows-In</strong></td>
+<td align="center">E</td>
+<td align="center"></td>
+<td align="center"></td>
+<td align="center"></td>
+</tr>
+</tbody>
+</table></article></body></html>
